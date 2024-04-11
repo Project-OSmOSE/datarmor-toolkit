@@ -12,11 +12,13 @@ The Open Science meets Ocean Sound Explorers is a collaborative research project
 
 Our [OSmOSE toolkit](https://github.com/Project-OSmOSE/osmose-toolkit) has been deployed on the [DATARMOR](https://www.ifremer.fr/fr/infrastructures-de-recherche/le-supercalculateur-datarmor) cluster of IFREMER, on which our production version runs. The toolkit is available to Datarmor members (must be affiliated to unix group gosmose, you will need a user account that may be provided upon request to be sent at dorian.cazau@ensta-bretagne.fr) as a suite of notebooks available in `/home/datawork-osmose/osmose-datarmor/notebooks/` and covering the most basic processing cases:
 
-1. data_uploader.ipynb : used for the importation and formatting of new datasets;
+1. data_uploader.ipynb : used for the importation and formatting of a new dataset;
 
 2. spectrogram_generator.ipynb : used for the generation of file-scale (or shorter) spectrograms;
 
 3. soundscape_analyzer.ipynb : used for long-term analysis (i.e. with timescale at least longer than the audio file duration), including the computation of soundscape metrics (eg long-term averaged spectrograms, EPD) and the retrieval of raw welch spectra at different time resolutions;
+
+Note : Steps 1 and 2 can be done for a batch of datasets at once using wrapper_data_uploader.ipynb and wrapper_spectrogram_generation.ipynb
 
 See our [user guide](assests/user_guide.pdf) for more details.
 
