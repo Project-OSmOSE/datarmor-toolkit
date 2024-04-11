@@ -10,7 +10,7 @@ The Open Science meets Ocean Sound Explorers is a collaborative research project
 
 ## Presentation
 
-Our [OSmOSE toolkit](https://github.com/Project-OSmOSE/osmose-toolkit) has been deployed on the [DATARMOR](https://www.ifremer.fr/fr/infrastructures-de-recherche/le-supercalculateur-datarmor) cluster of IFREMER, on which our production version runs. The toolkit is available to Datarmor members (must be affiliated to unix group gosmose, you will need a user account that may be provided upon request to be sent at dorian.cazau@ensta-bretagne.fr) as a suite of notebooks available in `/home/datawork-osmose/osmose-datarmor/notebooks/` and covering the most basic processing cases:
+Our [OSmOSE toolkit](https://github.com/Project-OSmOSE/osmose-toolkit) has been deployed on the [DATARMOR](https://www.ifremer.fr/fr/infrastructures-de-recherche/le-supercalculateur-datarmor) cluster of IFREMER, on which our production version runs. The toolkit is a suite of notebooks covering the most basic processing cases:
 
 1. data_uploader.ipynb : used for the importation and formatting of a new dataset;
 
@@ -28,7 +28,7 @@ The newest stable version of the toolkit can be directly used within a Jupyter H
 
 ## Quick start for developers
 
-To develop and/or test some code contributions to our toolkit on Datarmor, please refer to the `Contribution on Datarmor` section of [README](https://github.com/Project-OSmOSE/osmose-toolkit/blob/main/README.md). Beyond the codes inherent to the toolkit described in this section, the folder `/home/datawork-osmose/osmose-datarmor/source/` contains source codes specific to Datarmor such as pbs job submission.
+To develop and/or test some code contributions to our toolkit on Datarmor, please refer to the `Contribution on Datarmor` section of [README](https://github.com/Project-OSmOSE/osmose-toolkit/blob/main/README.md). Beyond the codes inherent to the toolkit described in this section, the repository contains source codes specific to Datarmor such as pbs job submission.
 
 ## License
 
