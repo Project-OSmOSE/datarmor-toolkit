@@ -10,7 +10,7 @@ The Open Science meets Ocean Sound Explorers is a collaborative research project
 
 ## Presentation
 
-Our [OSmOSE toolkit](https://github.com/Project-OSmOSE/osmose-toolkit) has been deployed on the [DATARMOR](https://www.ifremer.fr/fr/infrastructures-de-recherche/le-supercalculateur-datarmor) cluster of IFREMER, on which our production version runs. The toolkit is a suite of notebooks covering the most basic processing cases:
+Our [OSmOSE toolkit](https://github.com/Project-OSmOSE/OSEkit) has been deployed on the [DATARMOR](https://www.ifremer.fr/fr/infrastructures-de-recherche/le-supercalculateur-datarmor) cluster of IFREMER, on which our production version runs. The toolkit is a suite of notebooks covering the most basic processing cases:
 
 1. data_uploader.ipynb : used for the importation and formatting of a new dataset;
 
