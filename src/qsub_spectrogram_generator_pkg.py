@@ -91,9 +91,9 @@ if __name__ == "__main__":
         files_to_process = random.sample(files, min(args.nb_adjust_files, len(files)))
     else:
         files_to_process = files[
-            args.batch_ind_min : args.batch_ind_max
-            if args.batch_ind_max != -1
-            else len(files)
+            args.batch_ind_min : (
+                args.batch_ind_max if args.batch_ind_max != -1 else len(files)
+            )
         ]
 
     print(files_to_process)
