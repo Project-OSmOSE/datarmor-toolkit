@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Nov  9 20:55:03 2023
-
-@author: cazaudo
-"""
-
 from OSmOSE import Spectrogram
 from OSmOSE.config import *
 import argparse
@@ -73,7 +67,11 @@ if __name__ == "__main__":
             f"The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
         )
 
-    files = list(dataset.audio_path.glob("*.wav"))
+    files = []
+    for ext in SUPPORTED_AUDIO_FORMAT:
+        files_ext = list(dataset.audio_path.glob(f"*{ext}"))
+        [files.append(f) for f in files_ext]
+
     if args.files:
         selected_files = args.files.split(" ")
 
@@ -87,16 +85,17 @@ if __name__ == "__main__":
     print(f"Found {len(files)} files in {dataset.audio_path}.")
 
     adjust = args.nb_adjust_files and args.nb_adjust_files > 0
+
     if adjust:
         files_to_process = random.sample(files, min(args.nb_adjust_files, len(files)))
     else:
         files_to_process = files[
             args.batch_ind_min : (
-                args.batch_ind_max if args.batch_ind_max != -1 else len(files)
+                args.batch_ind_max + 1 if args.batch_ind_max != -1 else len(files)
             )
         ]
 
-    print(files_to_process)
+    print(f"files to process: {files_to_process}")
     print(f"args.save_for_LTAS, {args.save_for_LTAS,}")
     for i, audio_file in enumerate(files_to_process):
         print(audio_file)
