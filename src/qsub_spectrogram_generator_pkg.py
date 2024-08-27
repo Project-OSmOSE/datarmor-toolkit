@@ -75,23 +75,24 @@ if __name__ == "__main__":
     print(f"Found {len(files)} files in {dataset.audio_path}.")
 
     files_to_process = files[
-        args.batch_ind_min : args.batch_ind_max + 1
-        if args.batch_ind_max != -1
-        else len(files)
+        args.batch_ind_min : (
+            args.batch_ind_max + 1 if args.batch_ind_max != -1 else len(files)
+        )
     ]
 
-    print(f'files to process: {files_to_process}\n')
-    
+    print(f"files to process: {files_to_process}\n")
+
     for i, audio_file in enumerate(files_to_process):
         print(audio_file)
-        
+
         dataset.process_file(
             audio_file,
             adjust=False,
             save_matrix=args.save_matrix,
             save_for_LTAS=args.save_for_LTAS,
             clean_adjust_folder=True,
-            overwrite=args.overwrite)
+            overwrite=args.overwrite,
+        )
 
     if args.save_for_LTAS and args.save_matrix:
 
@@ -103,7 +104,7 @@ if __name__ == "__main__":
             None,
         )
         metadata_spectrogram = pd.read_csv(metadata_path)
-    
+
         path_all_welch = dataset.path.joinpath(
             OSMOSE_PATH.welch,
             dataset.audio_path.name,
@@ -141,4 +142,3 @@ if __name__ == "__main__":
             ]  # suprinsingly , doing simply = list(time) was droping the Timestamp dtype, to be investigated in more depth...
 
         np.savez(path_all_welch, Sxx=Sxx, Time=Time, Freq=Freq, allow_pickle=True)
-
