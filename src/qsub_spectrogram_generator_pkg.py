@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 from OSmOSE import Spectrogram
 from OSmOSE.config import *
 import argparse
@@ -9,6 +7,7 @@ import numpy as np
 import itertools
 import pandas as pd
 from pathlib import Path
+from OSmOSE.utils.audio_utils import get_audio_file
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -20,12 +19,6 @@ if __name__ == "__main__":
     )
     required.add_argument(
         "--dataset-path", "-p", required=True, help="The path to the dataset folder"
-    )
-    parser.add_argument(
-        "--nb-adjust-files",
-        "-a",
-        type=int,
-        help="The number of spectrograms to generated in order to adjust parameters. If a value higher than 0 is entered, the generation will switch to adjust mode. Default is 0.",
     )
     parser.add_argument("--files", "-f", type=list)
     parser.add_argument(
@@ -67,10 +60,7 @@ if __name__ == "__main__":
             f"The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
         )
 
-    files = []
-    for ext in SUPPORTED_AUDIO_FORMAT:
-        files_ext = list(dataset.audio_path.glob(f"*{ext}"))
-        [files.append(f) for f in files_ext]
+    files = get_audio_file(dataset.audio_path)
 
     if args.files:
         selected_files = args.files.split(" ")
@@ -84,40 +74,27 @@ if __name__ == "__main__":
 
     print(f"Found {len(files)} files in {dataset.audio_path}.")
 
-    adjust = args.nb_adjust_files and args.nb_adjust_files > 0
+    files_to_process = files[
+        args.batch_ind_min : args.batch_ind_max + 1
+        if args.batch_ind_max != -1
+        else len(files)
+    ]
 
-    if adjust:
-        files_to_process = random.sample(files, min(args.nb_adjust_files, len(files)))
-    else:
-        files_to_process = files[
-            args.batch_ind_min : (
-                args.batch_ind_max + 1 if args.batch_ind_max != -1 else len(files)
-            )
-        ]
-
-    print(f"files to process: {files_to_process}")
-    print(f"args.save_for_LTAS, {args.save_for_LTAS,}")
+    print(f'files to process: {files_to_process}\n')
+    
     for i, audio_file in enumerate(files_to_process):
         print(audio_file)
-        if args.save_for_LTAS:
-            dataset.process_file(
-                audio_file,
-                adjust=adjust,
-                save_matrix=args.save_matrix,
-                save_for_LTAS=args.save_for_LTAS,
-                clean_adjust_folder=True if i == 0 else False,
-                overwrite=args.overwrite,
-            )
-        else:
-            dataset.process_file(
-                audio_file,
-                adjust=adjust,
-                save_matrix=args.save_matrix,
-                clean_adjust_folder=True if i == 0 else False,
-                overwrite=args.overwrite,
-            )
+        
+        dataset.process_file(
+            audio_file,
+            adjust=False,
+            save_matrix=args.save_matrix,
+            save_for_LTAS=args.save_for_LTAS,
+            clean_adjust_folder=True,
+            overwrite=args.overwrite)
 
-    if not adjust:
+    if args.save_for_LTAS and args.save_matrix:
+
         # get metadata from spectrogram folder
         metadata_path = next(
             dataset.path.joinpath(
@@ -126,7 +103,7 @@ if __name__ == "__main__":
             None,
         )
         metadata_spectrogram = pd.read_csv(metadata_path)
-
+    
         path_all_welch = dataset.path.joinpath(
             OSMOSE_PATH.welch,
             dataset.audio_path.name,
@@ -134,7 +111,9 @@ if __name__ == "__main__":
         )
         Sxx = np.empty((1, int(metadata_spectrogram["nfft"][0] / 2) + 1))
         Time = []
-        print(f"nber of welch: {len(files_to_process)}")
+
+        print(f"number of welch: {len(files_to_process)}")
+
         for file_npz in files_to_process:
             file_npz = dataset.path.joinpath(
                 OSMOSE_PATH.welch,
@@ -162,3 +141,4 @@ if __name__ == "__main__":
             ]  # suprinsingly , doing simply = list(time) was droping the Timestamp dtype, to be investigated in more depth...
 
         np.savez(path_all_welch, Sxx=Sxx, Time=Time, Freq=Freq, allow_pickle=True)
+
