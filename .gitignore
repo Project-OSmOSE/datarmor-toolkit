@@ -1,5 +1,2 @@
-
-*.pyc
-/dev/.ipynb_checkpoints
-/notebooks/.ipynb_checkpoints
-/src/.ipynb_checkpoints
+__pycache__/
+.ipynb_checkpoints/
