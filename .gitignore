@@ -1,0 +1,5 @@
+
+*.pyc
+/dev/.ipynb_checkpoints
+/notebooks/.ipynb_checkpoints
+/src/.ipynb_checkpoints

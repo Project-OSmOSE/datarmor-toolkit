@@ -121,13 +121,17 @@ if __name__ == "__main__":
                 dataset.audio_path.name,
                 file_npz.with_suffix(".npz").name,
             )
-            print(f"load {file_npz}")
-            current_matrix = np.load(file_npz, allow_pickle=True)
-            os.remove(file_npz)
-            Sxx = np.vstack((Sxx, current_matrix["Sxx"]))
-            print(f"Sxx {Sxx.shape}")
-            Time.append(current_matrix["Time"])
-            print(f"time {len(Time)}")
+            if file_npz.exists():
+                print(f"load {file_npz}")
+                current_matrix = np.load(file_npz, allow_pickle=True)
+                os.remove(file_npz)
+                Sxx = np.vstack((Sxx, current_matrix["Sxx"]))
+                print(f"Sxx {Sxx.shape}")
+                Time.append(current_matrix["Time"])
+                print(f"time {len(Time)}")
+            else:
+                print(f"File {file_npz} not found. Skipping...")
+
         Sxx = Sxx[1:, :]
         Freq = current_matrix["Freq"]
 

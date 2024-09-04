@@ -87,7 +87,7 @@ def adjust_spectro(
 
         reshaped = reshape(
             input_files=files_to_process,
-            chunk_size=dataset.spectro_duration,
+            segment_size=dataset.spectro_duration,
             new_sr=dataset.dataset_sr,
             output_dir_path=temp_adjustment_output_dir,
             last_file_behavior="discard",
@@ -173,7 +173,7 @@ def generate_spectro(
 
     batch_size = nber_files_to_process // dataset.batch_number
 
-    dataset.save_spectro_metadata(True)
+    dataset.save_spectro_metadata(False)
 
     for batch in range(dataset.batch_number):
         i_min = batch * batch_size
@@ -219,16 +219,29 @@ def generate_spectro(
     print(f"The job ids are {job_id_list}")
 
 
-def display_progress(dataset: Spectrogram):
+def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: str):
 
     assert isinstance(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, display aborted"
+    assert isinstance(datetime_begin, str), "Not a string passed, display aborted"
+    assert isinstance(datetime_end, str), "Not a string passed, display aborted"
 
     nber_audio_file = len(get_audio_file(dataset.audio_path))
-    nber_file_to_process = pd.read_csv(
-        str(dataset.audio_path) + "/metadata.csv", header=0
-    )["audio_file_count"][0]
+
+    test_range = pd.date_range(
+        start=pd.Timestamp(datetime_begin),
+        end=pd.Timestamp(datetime_end),
+        freq=f"{dataset.spectro_duration}s",
+    ).to_list()
+    origin_dt = pd.read_csv(
+        dataset.path_input_audio_file / "timestamp.csv", parse_dates=["timestamp"]
+    )["timestamp"]
+    nber_file_to_process = 0
+    for dt in test_range:
+        if dt >= origin_dt.iloc[0] and dt <= origin_dt.iloc[-1]:
+            nber_file_to_process += 1
+
     nber_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
     nber_spectro_to_process = nber_file_to_process * sum(
         2**i for i in range(dataset.zoom_level + 1)
@@ -236,6 +249,8 @@ def display_progress(dataset: Spectrogram):
 
     if nber_audio_file == nber_file_to_process:
         status = "DONE"
+        dataset.jb.update_job_status()
+        dataset.jb.update_job_access()
     else:
         status = "ONGOING"
 
@@ -249,6 +264,8 @@ def display_progress(dataset: Spectrogram):
 
     if nber_spectro == nber_spectro_to_process:
         status = "DONE"
+        dataset.jb.update_job_status()
+        dataset.jb.update_job_access()
     else:
         status = "ONGOING"
 
