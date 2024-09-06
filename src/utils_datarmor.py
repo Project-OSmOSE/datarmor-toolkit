@@ -18,6 +18,45 @@ from OSmOSE.utils.audio_utils import get_audio_file
 from OSmOSE.utils.core_utils import add_entry_for_APLOSE, select_audio_file
 
 
+def validate_datetime(
+    dataset: Spectrogram,
+    datetime_begin: Union[str, None] = None,
+    datetime_end: Union[str, None] = None,
+):
+
+    # Validate datetimes format
+    regex = r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[+-]\d{4}$"
+    regex2 = r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$"
+    datetime_format_error = (
+        "Please use the following format: 'YYYY-MM-DDTHH:MM:SS+/-HHMM'."
+    )
+
+    file_metadata_path = dataset.original_folder / "file_metadata.csv"
+    file_metadata = pd.read_csv(file_metadata_path, parse_dates=["timestamp"])
+
+    if datetime_begin:
+        if not re.match(regex, datetime_begin) and not re.match(regex2, datetime_begin):
+            raise ValueError(
+                f"Invalid format for datetime_begin. {datetime_format_error}"
+            )
+        datetime_begin = pd.Timestamp(datetime_begin)
+    else:
+        datetime_begin = file_metadata["timestamp"].iloc[0]
+
+    if datetime_end:
+        if not re.match(regex, datetime_end) and not re.match(regex2, datetime_end):
+            raise ValueError(
+                f"Invalid format for datetime_end. {datetime_format_error}"
+            )
+        datetime_end = pd.Timestamp(datetime_end)
+    else:
+        datetime_end = file_metadata["timestamp"].iloc[-1] + pd.Timedelta(
+            file_metadata["duration"].iloc[-1], unit="s"
+        )
+
+    return datetime_begin, datetime_end
+
+
 def adjust_spectro(
     dataset: Spectrogram,
     file_list: List[str] = [],
@@ -91,6 +130,7 @@ def adjust_spectro(
             new_sr=dataset.dataset_sr,
             output_dir_path=temp_adjustment_output_dir,
             last_file_behavior="discard",
+            concat=dataset.concat,
         )
 
         file_adjust = random.sample(
@@ -111,9 +151,13 @@ def generate_spectro(
     overwrite: bool = False,
     save_matrix: bool = False,
     save_welch: bool = False,
-    datetime_begin: str = None,
-    datetime_end: str = None,
+    datetime_begin: Union[str, None] = None,
+    datetime_end: Union[str, None] = None,
 ):
+
+    datetime_begin, datetime_end = validate_datetime(
+        dataset, datetime_begin, datetime_end
+    )
 
     assert isinstance(
         dataset, Spectrogram
@@ -124,15 +168,16 @@ def generate_spectro(
     assert isinstance(overwrite, bool), "'overwrite' must be a boolean value"
     assert isinstance(save_matrix, bool), "'save_matrix' must be a boolean value"
     assert isinstance(save_welch, bool), "'save_welch' must be a boolean value"
+    assert isinstance(dataset.concat, bool), "'concat' must be a boolean value"
     assert isinstance(
         path_osmose_dataset, Union[str, Path]
     ), f"'path_osmose_dataset' must be a path, {path_osmose_dataset} not a valid value"
     assert isinstance(
-        datetime_begin, str
-    ), f"'datetime_begin' must be a datetime formatted string, {datetime_begin} not a valid value"
+        datetime_begin, pd.Timestamp
+    ), f"'datetime_begin' must be either 'None' or a datetime, {datetime_begin} not a valid value"
     assert isinstance(
-        datetime_end, str
-    ), f"'datetime_end' must be a datetime formatted string, {datetime_end} not a valid value"
+        datetime_end, pd.Timestamp
+    ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
 
     if write_datasets_csv_for_APLOSE is True:
 
@@ -141,35 +186,31 @@ def generate_spectro(
         )[-1]
 
         dataset_info = {
-            "campaign": dataset.campaign,
+            "path": dataset.path,
             "dataset": dataset.name,
             "spectro_duration": f"{dataset.spectro_duration}",
             "dataset_sr": f"{dataset.dataset_sr}",
             "file_type": file_type,
-            "identifier": dataset.campaign
-            + "_"
-            + dataset.name
-            + "_"
-            + str(dataset.spectro_duration)
-            + "_"
-            + str(dataset.dataset_sr),
         }
 
         dataset_info = pd.DataFrame(dataset_info, index=[0])
 
         add_entry_for_APLOSE(
-            path=path_osmose_dataset, file="datasets_copy.csv", info=dataset_info
+            path=path_osmose_dataset, file="datasets.csv", info=dataset_info
         )
 
     # compute expected_nber_segmented_files
-    new_file = list(
-        pd.date_range(
-            start=pd.Timestamp(datetime_begin),
-            end=pd.Timestamp(datetime_end),
-            freq=f"{dataset.spectro_duration}s",
+    if dataset.concat:
+        new_file = list(
+            pd.date_range(
+                start=datetime_begin,
+                end=datetime_end,
+                freq=f"{dataset.spectro_duration}s",
+            )
         )
-    )
-    nber_files_to_process = len(new_file) - 1
+        nber_files_to_process = len(new_file) - 1
+    else:
+        nber_files_to_process = len(dataset.list_audio_to_process)
 
     batch_size = nber_files_to_process // dataset.batch_number
 
@@ -221,31 +262,46 @@ def generate_spectro(
 
 def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: str):
 
+    datetime_begin, datetime_end = validate_datetime(
+        dataset, datetime_begin, datetime_end
+    )
+
     assert isinstance(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, display aborted"
-    assert isinstance(datetime_begin, str), "Not a string passed, display aborted"
-    assert isinstance(datetime_end, str), "Not a string passed, display aborted"
+    assert isinstance(
+        datetime_begin, pd.Timestamp
+    ), f"'datetime_begin' must be either 'None' or a datetime, {datetime_begin} not a valid value"
+    assert isinstance(
+        datetime_end, pd.Timestamp
+    ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
 
     nber_audio_file = len(get_audio_file(dataset.audio_path))
 
-    test_range = pd.date_range(
-        start=pd.Timestamp(datetime_begin),
-        end=pd.Timestamp(datetime_end),
-        freq=f"{dataset.spectro_duration}s",
-    ).to_list()
-    origin_dt = pd.read_csv(
-        dataset.path_input_audio_file / "timestamp.csv", parse_dates=["timestamp"]
-    )["timestamp"]
-    nber_file_to_process = 0
-    for dt in test_range:
-        if dt >= origin_dt.iloc[0] and dt <= origin_dt.iloc[-1]:
-            nber_file_to_process += 1
+    if dataset.concat:
+        test_range = pd.date_range(
+            start=datetime_begin,
+            end=datetime_end,
+            freq=f"{dataset.spectro_duration}s",
+        ).to_list()
+        origin_dt = pd.read_csv(
+            dataset.path_input_audio_file / "timestamp.csv", parse_dates=["timestamp"]
+        )["timestamp"]
+        nber_file_to_process = 0
+        for dt in test_range:
+            if dt >= origin_dt.iloc[0] and dt <= origin_dt.iloc[-1]:
+                nber_file_to_process += 1
 
-    nber_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
-    nber_spectro_to_process = nber_file_to_process * sum(
-        2**i for i in range(dataset.zoom_level + 1)
-    )
+        nber_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
+        nber_spectro_to_process = nber_file_to_process * sum(
+            2**i for i in range(dataset.zoom_level + 1)
+        )
+    else:
+        nber_file_to_process = len(dataset.list_audio_to_process)
+        nber_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
+        nber_spectro_to_process = nber_file_to_process * sum(
+            2**i for i in range(dataset.zoom_level + 1)
+        )
 
     if nber_audio_file == nber_file_to_process:
         status = "DONE"
