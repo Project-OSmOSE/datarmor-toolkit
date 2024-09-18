@@ -6,6 +6,7 @@ from OSmOSE.cluster import reshape
 import argparse
 import random
 import os
+import re
 import sys
 import numpy as np
 import pandas as pd
@@ -297,11 +298,44 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
             2**i for i in range(dataset.zoom_level + 1)
         )
     else:
-        nber_file_to_process = len(dataset.list_audio_to_process)
-        nber_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
-        nber_spectro_to_process = nber_file_to_process * sum(
-            2**i for i in range(dataset.zoom_level + 1)
+        # nber_file_to_process = len(dataset.list_audio_to_process)
+        origin_timestamp = pd.read_csv(
+            dataset.original_folder / "timestamp.csv", parse_dates=["timestamp"]
         )
+        datetime_begin = (
+            origin_timestamp["timestamp"].iloc[0]
+            if datetime_begin is None
+            else datetime_begin
+        )
+        datetime_end = (
+            origin_timestamp["timestamp"].iloc[-1]
+            if datetime_end is None
+            else datetime_end
+        )
+        nber_file_to_process = len(
+            origin_timestamp[
+                (origin_timestamp["timestamp"] >= datetime_begin)
+                & (origin_timestamp["timestamp"] <= datetime_end)
+            ]
+        )
+
+    nber_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
+    nber_spectro_to_process = nber_file_to_process * sum(
+        2**i for i in range(dataset.zoom_level + 1)
+    )
+
+    # counting the skipped files
+    out_file = [
+        str(job["outfile"])
+        for job in (dataset.jb.finished_jobs)
+        if "reshape" in str(job["outfile"])
+    ]
+    skipped = 0
+    if out_file:
+        for file in out_file:
+            with open(file, "r") as f:
+                skipped += sum(line.count("Skipping...") for line in f)
+        nber_audio_file += skipped
 
     if nber_audio_file == nber_file_to_process:
         status = "DONE"
@@ -317,6 +351,8 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
         str(nber_file_to_process),
         ")",
     )
+    print(f"\t- Generated audio: {len(get_audio_file(dataset.audio_path))}")
+    print(f"\t- Discarded audio: {skipped}")
 
     if nber_spectro == nber_spectro_to_process:
         status = "DONE"
@@ -334,18 +370,19 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
     )
 
 
-def monitor_job(job_id: Union[str, List[str]]):
+def monitor_job(dataset: Spectrogram):
 
-    assert isinstance(job_id, str) or (
-        isinstance(job_id, list) and all(isinstance(item, str) for item in job_id)
-    ), f"Job ID must be a string or a list of strings, {job_id} is not a valid value"
+    assert isinstance(
+        dataset, Spectrogram
+    ), "Not a Spectrogram object passed, display aborted"
 
-    if isinstance(job_id, str):
-        job_id = [job_id]
+    prepared_jobs = [job["id"] for job in (dataset.jb.prepared_jobs)]
+    ongoing_jobs = [job["id"] for job in (dataset.jb.ongoing_jobs)]
+    cancelled_jobs = [job["id"] for job in (dataset.jb.cancelled_jobs)]
+    finished_jobs = [job["id"] for job in (dataset.jb.finished_jobs)]
+    all_jobs = prepared_jobs + ongoing_jobs + cancelled_jobs + finished_jobs
 
-    for j in job_id:
-        assert isinstance(j, str), f"Job ID must be a string, {j} is not a valid value"
-
+    for j in all_jobs:
         try:
             # Run the qstat command
             result = subprocess.run(
