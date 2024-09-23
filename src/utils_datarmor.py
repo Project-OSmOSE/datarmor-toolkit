@@ -160,6 +160,13 @@ def generate_spectro(
         dataset, datetime_begin, datetime_end
     )
 
+    prepared_jobs = [job["path"].parent for job in (dataset.jb.prepared_jobs)]
+    ongoing_jobs = [job["path"].parent for job in (dataset.jb.ongoing_jobs)]
+    cancelled_jobs = [job["path"].parent for job in (dataset.jb.cancelled_jobs)]
+    finished_jobs = [job["path"].parent for job in (dataset.jb.finished_jobs)]
+    all_jobs = prepared_jobs + ongoing_jobs + cancelled_jobs + finished_jobs
+    log_dir = list(set(all_jobs))[0]
+
     assert isinstance(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, adjustment aborted"
@@ -241,7 +248,7 @@ def generate_spectro(
             env_name=sys.executable.replace("/bin/python", ""),
             mem="70G",
             walltime="10:00:00",
-            logdir=dataset.path.joinpath("log"),
+            logdir=log_dir,
         )
 
     pending_jobs = [
@@ -290,7 +297,11 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
         )["timestamp"]
         nber_file_to_process = 0
         for dt in test_range:
-            if dt >= origin_dt.iloc[0] and dt <= origin_dt.iloc[-1]:
+            if dt >= origin_dt.iloc[0] - pd.Timedelta(
+                dataset.spectro_duration, "s"
+            ) and dt <= origin_dt.iloc[-1] + pd.Timedelta(
+                dataset.spectro_duration, "s"
+            ):
                 nber_file_to_process += 1
 
         nber_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
@@ -407,3 +418,26 @@ def monitor_job(dataset: Spectrogram):
                 print(f"o Job ID: {j}\n  Job state not found.")
         except Exception as e:
             print(f"o Job ID: {j}\n  {str(e)}")
+
+
+def read_job(job_id: str, dataset: Spectrogram):
+
+    assert isinstance(
+        dataset, Spectrogram
+    ), "Not a Spectrogram object passed, display aborted"
+    assert isinstance(job_id, str), "'job_id' must be a string"
+
+    finished_jobs = dataset.jb.finished_jobs
+    id_jobs = [job["id"] for job in finished_jobs]
+    outfile = next(
+        (job["outfile"] for job in finished_jobs if job["id"] == job_id), None
+    )
+
+    if outfile:
+        if outfile.exists():
+            with open(outfile) as f:
+                print(f.read())
+        else:
+            raise FileNotFoundError
+    else:
+        print(f"{job_id} not in finished jobs")
