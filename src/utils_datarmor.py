@@ -15,8 +15,8 @@ import glob
 from typing import List, Union
 import shutil
 import subprocess
-from OSmOSE.utils.audio_utils import get_audio_file
-from OSmOSE.utils.core_utils import add_entry_for_APLOSE, select_audio_file
+from OSmOSE.utils.audio_utils import get_all_audio_files
+from OSmOSE.utils.core_utils import add_entry_for_APLOSE
 
 
 def validate_datetime(
@@ -135,7 +135,7 @@ def adjust_spectro(
         )
 
         file_adjust = random.sample(
-            get_audio_file(file_path=temp_adjustment_output_dir),
+            get_all_audio_files(file_path=temp_adjustment_output_dir),
             number_adjustment_spectrogram,
         )
 
@@ -190,7 +190,7 @@ def generate_spectro(
     if write_datasets_csv_for_APLOSE is True:
 
         file_type = list(
-            set([f.suffix for f in get_audio_file(dataset._Dataset__original_folder)])
+            set([f.suffix for f in get_all_audio_files(dataset._Dataset__original_folder)])
         )[-1]
 
         dataset_info = {
@@ -284,7 +284,7 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
         datetime_end, pd.Timestamp
     ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
 
-    nber_audio_file = len(get_audio_file(dataset.audio_path))
+    nber_audio_file = len(get_all_audio_files(dataset.audio_path))
 
     if dataset.concat:
         test_range = pd.date_range(
@@ -362,7 +362,7 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
         str(nber_file_to_process),
         ")",
     )
-    print(f"\t- Generated audio: {len(get_audio_file(dataset.audio_path))}")
+    print(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
     print(f"\t- Discarded audio: {skipped}")
 
     if nber_spectro == nber_spectro_to_process:
