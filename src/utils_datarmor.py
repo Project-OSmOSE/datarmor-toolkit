@@ -3,20 +3,17 @@
 from OSmOSE import Spectrogram
 from OSmOSE.config import SUPPORTED_AUDIO_FORMAT
 from OSmOSE.cluster import reshape
-import argparse
 import random
 import os
 import re
 import sys
-import numpy as np
 import pandas as pd
 from pathlib import Path
-import glob
 from typing import List, Union
 import shutil
 import subprocess
-from OSmOSE.utils.audio_utils import get_audio_file
-from OSmOSE.utils.core_utils import add_entry_for_APLOSE, select_audio_file
+from OSmOSE.utils.audio_utils import get_all_audio_files
+from OSmOSE.utils.core_utils import add_entry_for_APLOSE
 
 
 def validate_datetime(
@@ -80,7 +77,7 @@ def adjust_spectro(
         return
 
     dataset.audio_path = (
-        dataset._Dataset__original_folder
+        dataset.original_folder
     )  # necessary because of the reshape thereafter that changes the audio_path
 
     orig_metadata = pd.read_csv(
@@ -125,21 +122,20 @@ def adjust_spectro(
         if os.path.exists(temp_adjustment_output_dir):
             shutil.rmtree(temp_adjustment_output_dir)
 
-        reshaped = reshape(
+        reshape(
             input_files=files_to_process,
             segment_size=dataset.spectro_duration,
             new_sr=dataset.dataset_sr,
             output_dir_path=temp_adjustment_output_dir,
-            last_file_behavior="discard",
             concat=dataset.concat,
         )
 
-        file_adjust = random.sample(
-            get_audio_file(file_path=temp_adjustment_output_dir),
+        files_adjust = random.sample(
+            get_all_audio_files(directory = temp_adjustment_output_dir),
             number_adjustment_spectrogram,
         )
 
-    for audio_file in file_adjust:
+    for audio_file in files_adjust:
         dataset.process_file(audio_file, adjust=True)
 
     dataset.save_spectro_metadata(spectro_metadata)
@@ -148,7 +144,7 @@ def adjust_spectro(
 def generate_spectro(
     dataset: Spectrogram,
     path_osmose_dataset: Union[str, Path],
-    write_datasets_csv_for_APLOSE: bool = False,
+    write_datasets_csv_for_aplose: bool = False,
     overwrite: bool = False,
     save_matrix: bool = False,
     save_welch: bool = False,
@@ -171,7 +167,7 @@ def generate_spectro(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, adjustment aborted"
     assert isinstance(
-        write_datasets_csv_for_APLOSE, bool
+        write_datasets_csv_for_aplose, bool
     ), "'write_datasets_csv_for_APLOSE' must be a boolean value"
     assert isinstance(overwrite, bool), "'overwrite' must be a boolean value"
     assert isinstance(save_matrix, bool), "'save_matrix' must be a boolean value"
@@ -187,10 +183,10 @@ def generate_spectro(
         datetime_end, pd.Timestamp
     ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
 
-    if write_datasets_csv_for_APLOSE is True:
+    if write_datasets_csv_for_aplose is True:
 
         file_type = list(
-            set([f.suffix for f in get_audio_file(dataset._Dataset__original_folder)])
+            set([f.suffix for f in get_all_audio_files(dataset.original_folder)])
         )[-1]
 
         dataset_info = {
@@ -284,7 +280,7 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
         datetime_end, pd.Timestamp
     ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
 
-    nber_audio_file = len(get_audio_file(dataset.audio_path))
+    nber_audio_file = len(get_all_audio_files(dataset.audio_path))
 
     if dataset.concat:
         test_range = pd.date_range(
@@ -338,7 +334,7 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
     # counting the skipped files
     out_file = [
         str(job["outfile"])
-        for job in (dataset.jb.finished_jobs)
+        for job in dataset.jb.finished_jobs
         if "reshape" in str(job["outfile"])
     ]
     skipped = 0
@@ -362,7 +358,7 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
         str(nber_file_to_process),
         ")",
     )
-    print(f"\t- Generated audio: {len(get_audio_file(dataset.audio_path))}")
+    print(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
     print(f"\t- Discarded audio: {skipped}")
 
     if nber_spectro == nber_spectro_to_process:
@@ -387,10 +383,10 @@ def monitor_job(dataset: Spectrogram):
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, display aborted"
 
-    prepared_jobs = [job["id"] for job in (dataset.jb.prepared_jobs)]
-    ongoing_jobs = [job["id"] for job in (dataset.jb.ongoing_jobs)]
-    cancelled_jobs = [job["id"] for job in (dataset.jb.cancelled_jobs)]
-    finished_jobs = [job["id"] for job in (dataset.jb.finished_jobs)]
+    prepared_jobs = [job["id"] for job in dataset.jb.prepared_jobs]
+    ongoing_jobs = [job["id"] for job in dataset.jb.ongoing_jobs]
+    cancelled_jobs = [job["id"] for job in dataset.jb.cancelled_jobs]
+    finished_jobs = [job["id"] for job in dataset.jb.finished_jobs]
     all_jobs = prepared_jobs + ongoing_jobs + cancelled_jobs + finished_jobs
 
     for j in all_jobs:
