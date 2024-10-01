@@ -144,7 +144,7 @@ def adjust_spectro(
 def generate_spectro(
     dataset: Spectrogram,
     path_osmose_dataset: Union[str, Path],
-    write_datasets_csv_for_aplose: bool = False,
+    write_datasets_csv_for_APLOSE: bool = False,
     overwrite: bool = False,
     save_matrix: bool = False,
     save_welch: bool = False,
@@ -167,7 +167,7 @@ def generate_spectro(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, adjustment aborted"
     assert isinstance(
-        write_datasets_csv_for_aplose, bool
+        write_datasets_csv_for_APLOSE, bool
     ), "'write_datasets_csv_for_APLOSE' must be a boolean value"
     assert isinstance(overwrite, bool), "'overwrite' must be a boolean value"
     assert isinstance(save_matrix, bool), "'save_matrix' must be a boolean value"
@@ -183,7 +183,7 @@ def generate_spectro(
         datetime_end, pd.Timestamp
     ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
 
-    if write_datasets_csv_for_aplose is True:
+    if write_datasets_csv_for_APLOSE is True:
 
         file_type = list(
             set([f.suffix for f in get_all_audio_files(dataset.original_folder)])
