@@ -7,7 +7,7 @@ import numpy as np
 import itertools
 import pandas as pd
 from pathlib import Path
-from OSmOSE.utils.audio_utils import get_audio_file
+from OSmOSE.utils.audio_utils import get_all_audio_files
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -60,7 +60,7 @@ if __name__ == "__main__":
             f"The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
         )
 
-    files = get_audio_file(dataset.audio_path)
+    files = get_all_audio_files(dataset.audio_path)
 
     if args.files:
         selected_files = args.files.split(" ")
