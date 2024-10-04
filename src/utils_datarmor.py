@@ -190,7 +190,7 @@ def generate_spectro(
         )[-1]
 
         dataset_info = {
-            "path": dataset.path,
+            "path": dataset.path.relative_to(path_osmose_dataset),
             "dataset": dataset.name,
             "spectro_duration": f"{dataset.spectro_duration}",
             "dataset_sr": f"{dataset.dataset_sr}",
