@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from OSmOSE import Spectrogram
-from OSmOSE.config import SUPPORTED_AUDIO_FORMAT
+from OSmOSE.config import SUPPORTED_AUDIO_FORMAT, OSMOSE_PATH
 from OSmOSE.cluster import reshape
 import random
 import os
@@ -144,7 +144,7 @@ def adjust_spectro(
 def generate_spectro(
     dataset: Spectrogram,
     path_osmose_dataset: Union[str, Path],
-    write_datasets_csv_for_APLOSE: bool = False,
+    write_datasets_csv_for_aplose: bool = False,
     overwrite: bool = False,
     save_matrix: bool = False,
     save_welch: bool = False,
@@ -156,18 +156,14 @@ def generate_spectro(
         dataset, datetime_begin, datetime_end
     )
 
-    prepared_jobs = [job["path"].parent for job in (dataset.jb.prepared_jobs)]
-    ongoing_jobs = [job["path"].parent for job in (dataset.jb.ongoing_jobs)]
-    cancelled_jobs = [job["path"].parent for job in (dataset.jb.cancelled_jobs)]
-    finished_jobs = [job["path"].parent for job in (dataset.jb.finished_jobs)]
-    all_jobs = prepared_jobs + ongoing_jobs + cancelled_jobs + finished_jobs
-    log_dir = list(set(all_jobs))[0]
+    first_job = next(iter(dataset.jb.all_jobs), None)
+    log_dir = (dataset.path / OSMOSE_PATH.log) if first_job is None else first_job["path"].parent
 
     assert isinstance(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, adjustment aborted"
     assert isinstance(
-        write_datasets_csv_for_APLOSE, bool
+        write_datasets_csv_for_aplose, bool
     ), "'write_datasets_csv_for_APLOSE' must be a boolean value"
     assert isinstance(overwrite, bool), "'overwrite' must be a boolean value"
     assert isinstance(save_matrix, bool), "'save_matrix' must be a boolean value"
@@ -183,7 +179,7 @@ def generate_spectro(
         datetime_end, pd.Timestamp
     ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
 
-    if write_datasets_csv_for_APLOSE is True:
+    if write_datasets_csv_for_aplose is True:
 
         file_type = list(
             set([f.suffix for f in get_all_audio_files(dataset.original_folder)])
