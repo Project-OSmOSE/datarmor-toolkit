@@ -214,7 +214,7 @@ def generate_spectro(
 
     batch_size = nber_files_to_process // dataset.batch_number
 
-    jobfile = None
+    jobfiles = []
 
     dataset.prepare_paths()
     spectrogram_metadata_path = dataset.save_spectro_metadata(False)
@@ -247,6 +247,8 @@ def generate_spectro(
             logdir=log_dir,
         )
 
+        jobfiles.append(jobfile)
+
     if hasattr(dataset, "pending_jobs"):
         pending_jobs = [
             jobid
@@ -257,10 +259,10 @@ def generate_spectro(
     else:
         pending_jobs = []
 
-    job_id_list = dataset.jb.submit_job(
+    job_id_list = [dataset.jb.submit_job(
         jobfile = jobfile,
         dependency=pending_jobs
-    )  # submit all built job files
+    ) for jobfile in jobfiles]  # submit all built job files
     nb_jobs = len(dataset.jb.finished_jobs) + len(job_id_list)
 
     if pending_jobs:
