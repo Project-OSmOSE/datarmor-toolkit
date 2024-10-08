@@ -214,7 +214,10 @@ def generate_spectro(
 
     batch_size = nber_files_to_process // dataset.batch_number
 
-    dataset.save_spectro_metadata(False)
+    jobfile = None
+
+    dataset.prepare_paths()
+    spectrogram_metadata_path = dataset.save_spectro_metadata(False)
 
     for batch in range(dataset.batch_number):
         i_min = batch * batch_size
@@ -232,6 +235,7 @@ def generate_spectro(
             f"--dataset-sr {dataset.dataset_sr} "
             f"--batch-ind-min {i_min} "
             f"--batch-ind-max {i_max} "
+            f"--spectrogram-metadata-path {spectrogram_metadata_path} "
             f"{'--overwrite ' if overwrite else ''}"
             f"{'--save-for-LTAS ' if save_welch else ''}"
             f"{'--save-matrix ' if save_matrix else ''}",
@@ -243,14 +247,18 @@ def generate_spectro(
             logdir=log_dir,
         )
 
-    pending_jobs = [
-        jobid
-        for jobid in dataset.pending_jobs
-        if b"finished"
-        not in subprocess.run(["qstat", jobid], capture_output=True).stderr
-    ]
+    if hasattr(dataset, "pending_jobs"):
+        pending_jobs = [
+            jobid
+            for jobid in dataset.pending_jobs
+            if b"finished"
+            not in subprocess.run(["qstat", jobid], capture_output=True).stderr
+        ]
+    else:
+        pending_jobs = []
 
     job_id_list = dataset.jb.submit_job(
+        jobfile = jobfile,
         dependency=pending_jobs
     )  # submit all built job files
     nb_jobs = len(dataset.jb.finished_jobs) + len(job_id_list)
