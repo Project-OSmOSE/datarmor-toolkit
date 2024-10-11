@@ -47,13 +47,15 @@ if __name__ == "__main__":
         help="Whether to save the spectrogram matrices or not. Note that activating this parameter might increase greatly the volume of the project.",
     )
     parser.add_argument("--save-for-LTAS", action="store_true")
+    parser.add_argument("--spectrogram-metadata-path", type = str, default = '')
 
     args = parser.parse_args()
 
     print("Parameters :", args)
 
     os.system("ln -sf /appli/sox/sox-14.4.2_gcc-7.2.0/bin/sox sox")
-    dataset = Spectrogram(args.dataset_path, dataset_sr=args.dataset_sr)
+
+    dataset = Spectrogram.from_csv(dataset_path = args.dataset_path, metadata_csv_path = args.spectrogram_metadata_path)
 
     if not dataset.path.joinpath("processed", "spectrogram", "adjust_metadata.csv"):
         raise FileNotFoundError(
