@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 from OSmOSE import Spectrogram
 from OSmOSE.config import SUPPORTED_AUDIO_FORMAT, OSMOSE_PATH
 from OSmOSE.cluster import reshape
