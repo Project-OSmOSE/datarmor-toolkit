@@ -23,9 +23,7 @@ def adjust_spectro(dataset: Spectrogram, number_adjustment_spectrogram: int = 1)
     number_adjustment_spectrogram: int
         Number of adjustment spectrogram to be computed
     """
-    assert isinstance(
-        dataset, Spectrogram
-    ), "Not a Spectrogram object passed"
+    assert isinstance(dataset, Spectrogram), "Not a Spectrogram object passed"
     assert (
         isinstance(number_adjustment_spectrogram, int)
         and number_adjustment_spectrogram >= 0
@@ -42,34 +40,38 @@ def adjust_spectro(dataset: Spectrogram, number_adjustment_spectrogram: int = 1)
     origin_files = get_all_audio_files(dataset.audio_path)
 
     temp_adjustment_output_dir = (
-    dataset.audio_path.parent
-    / f"temp_{dataset.spectro_duration}_{dataset.dataset_sr}"
+        dataset.audio_path.parent
+        / f"temp_{dataset.spectro_duration}_{dataset.dataset_sr}"
     )
 
     if (
-    dataset.data_normalization == "zscore"
-    and dataset.spectro_normalization != "spectrum"
+        dataset.data_normalization == "zscore"
+        and dataset.spectro_normalization != "spectrum"
     ):
         dataset.spectro_normalization = "spectrum"
         print(
             "WARNING: the spectrogram normalization has been changed to spectrum because the data will be normalized using zscore."
         )
 
-    file_metadata = pd.read_csv(dataset.audio_path / 'file_metadata.csv')
+    file_metadata = pd.read_csv(dataset.audio_path / "file_metadata.csv")
 
     if os.path.exists(temp_adjustment_output_dir):
-            shutil.rmtree(temp_adjustment_output_dir)
+        shutil.rmtree(temp_adjustment_output_dir)
 
     for _ in range(number_adjustment_spectrogram):
         random_idx = randint(0, len(origin_files) - 1)
 
-        selected_ts_beg = pd.Timestamp(file_metadata['timestamp'].iloc[random_idx]).timestamp()
-        selected_ts_end = selected_ts_beg + file_metadata['duration'].iloc[random_idx]
-        tz_data = pd.Timestamp(file_metadata['timestamp'].iloc[random_idx]).tz
+        selected_ts_beg = pd.Timestamp(
+            file_metadata["timestamp"].iloc[random_idx]
+        ).timestamp()
+        selected_ts_end = selected_ts_beg + file_metadata["duration"].iloc[random_idx]
+        tz_data = pd.Timestamp(file_metadata["timestamp"].iloc[random_idx]).tz
 
-        random_ts = randint(int(selected_ts_beg), int(selected_ts_end - dataset.spectro_duration))
-        random_ts_beg = pd.Timestamp(random_ts, unit='s', tz=tz_data)
-        random_ts_end = random_ts_beg + pd.Timedelta(dataset.spectro_duration, 's')
+        random_ts = randint(
+            int(selected_ts_beg), int(selected_ts_end - dataset.spectro_duration)
+        )
+        random_ts_beg = pd.Timestamp(random_ts, unit="s", tz=tz_data)
+        random_ts_end = random_ts_beg + pd.Timedelta(dataset.spectro_duration, "s")
 
         reshape(
             input_files=dataset.original_folder,
@@ -77,7 +79,7 @@ def adjust_spectro(dataset: Spectrogram, number_adjustment_spectrogram: int = 1)
             new_sr=dataset.dataset_sr,
             output_dir_path=temp_adjustment_output_dir,
             datetime_begin=str(random_ts_beg),
-            datetime_end=str(random_ts_end)
+            datetime_end=str(random_ts_end),
         )
 
     files_adjust = get_all_audio_files(temp_adjustment_output_dir)
@@ -119,7 +121,11 @@ def generate_spectro(
         End datetime of spectrograms to compute
     """
     first_job = next(iter(dataset.jb.all_jobs), None)
-    log_dir = (dataset.path / OSMOSE_PATH.log) if first_job is None else first_job["path"].parent
+    log_dir = (
+        (dataset.path / OSMOSE_PATH.log)
+        if first_job is None
+        else first_job["path"].parent
+    )
 
     assert isinstance(
         dataset, Spectrogram
@@ -221,10 +227,10 @@ def generate_spectro(
     else:
         pending_jobs = []
 
-    job_id_list = [dataset.jb.submit_job(
-        jobfile = jobfile,
-        dependency=pending_jobs
-    ) for jobfile in job_files]  # submit all built job files
+    job_id_list = [
+        dataset.jb.submit_job(jobfile=jobfile, dependency=pending_jobs)
+        for jobfile in job_files
+    ]  # submit all built job files
     nb_jobs = len(dataset.jb.finished_jobs) + len(job_id_list)
 
     if pending_jobs:
@@ -232,7 +238,9 @@ def generate_spectro(
     print(f"The job ids are {job_id_list}")
 
 
-def display_progress(dataset: Spectrogram, datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp):
+def display_progress(
+    dataset: Spectrogram, datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp
+):
     """
     Display progress on audio segments and spectrogram computation.
 
@@ -270,10 +278,10 @@ def display_progress(dataset: Spectrogram, datetime_begin: pd.Timestamp, datetim
 
         number_file_to_process = 0
         for dt in test_range:
-            if origin_dt.iloc[0] - pd.Timedelta(
-                dataset.spectro_duration, "s"
-            ) <= dt <= origin_dt.iloc[-1] + pd.Timedelta(
-                dataset.spectro_duration, "s"
+            if (
+                origin_dt.iloc[0] - pd.Timedelta(dataset.spectro_duration, "s")
+                <= dt
+                <= origin_dt.iloc[-1] + pd.Timedelta(dataset.spectro_duration, "s")
             ):
                 number_file_to_process += 1
 
