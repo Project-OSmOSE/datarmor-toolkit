@@ -1,5 +1,5 @@
 from OSmOSE import Spectrogram
-from OSmOSE.config import OSMOSE_PATH
+from OSmOSE.config import OSMOSE_PATH, global_logging_context as glc
 import argparse
 import os
 import numpy as np
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print("Parameters :", args)
+    glc.logger.info(f"Parameters: {args}")
 
     os.system("ln -sf /appli/sox/sox-14.4.2_gcc-7.2.0/bin/sox sox")
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         else:
             files = selected_files
 
-    print(f"Found {len(files)} files in {dataset.audio_path}.")
+    glc.logger.debug(f"Found {len(files)} files in {dataset.audio_path}.")
 
     files_to_process = files[
         args.batch_ind_min : (
@@ -80,10 +80,10 @@ if __name__ == "__main__":
         )
     ]
 
-    print(f"files to process: {files_to_process}\n")
+    glc.logger.debug(f"files to process: {files_to_process}")
 
     for i, audio_file in enumerate(files_to_process):
-        print(audio_file)
+        glc.logger.debug(audio_file)
 
         dataset.process_file(
             audio_file,
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         Sxx = np.empty((1, int(metadata_spectrogram["nfft"][0] / 2) + 1))
         Time = []
 
-        print(f"number of welch: {len(files_to_process)}")
+        glc.logger.debug(f"number of welch: {len(files_to_process)}")
 
         for file_npz in files_to_process:
             file_npz = dataset.path.joinpath(
@@ -122,15 +122,15 @@ if __name__ == "__main__":
                 file_npz.with_suffix(".npz").name,
             )
             if file_npz.exists():
-                print(f"load {file_npz}")
+                glc.logger.debug(f"load {file_npz}")
                 current_matrix = np.load(file_npz, allow_pickle=True)
                 os.remove(file_npz)
                 Sxx = np.vstack((Sxx, current_matrix["Sxx"]))
-                print(f"Sxx {Sxx.shape}")
+                glc.logger.debug(f"Sxx {Sxx.shape}")
                 Time.append(current_matrix["Time"])
-                print(f"time {len(Time)}")
+                glc.logger.debug(f"time {len(Time)}")
             else:
-                print(f"File {file_npz} not found. Skipping...")
+                glc.logger.warning(f"File {file_npz} not found. Skipping...")
 
         Sxx = Sxx[1:, :]
         Freq = current_matrix["Freq"]

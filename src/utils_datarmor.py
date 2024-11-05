@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from OSmOSE import Spectrogram
-from OSmOSE.config import SUPPORTED_AUDIO_FORMAT, OSMOSE_PATH
+from OSmOSE.config import SUPPORTED_AUDIO_FORMAT, OSMOSE_PATH, global_logging_context as glc
 from OSmOSE.cluster import reshape
 import random
 import os
@@ -101,9 +101,8 @@ def adjust_spectro(
         and dataset.spectro_normalization != "spectrum"
     ):
         dataset.spectro_normalization = "spectrum"
-        print(
-            "WARNING: the spectrogram normalization has been changed to spectrum because the data will be normalized using zscore."
-        )
+        glc.logger.warning("The spectrogram normalization has been changed to spectrum because the data will be normalized using zscore.")
+
 
     if len(file_list) > 0:
         files_adjust = [temp_adjustment_output_dir + "/" + ff for ff in file_list]
@@ -266,8 +265,8 @@ def generate_spectro(
     nb_jobs = len(dataset.jb.finished_jobs) + len(job_id_list)
 
     if pending_jobs:
-        print(f"pending job ids: {pending_jobs}")
-    print(f"The job ids are {job_id_list}")
+        glc.logger.info(f"pending job ids: {pending_jobs}")
+    glc.logger.info(f"The job ids are {job_id_list}")
 
 
 def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: str):
@@ -357,15 +356,10 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
     else:
         status = "ONGOING"
 
-    print(
-        "o Audio file preparation : " + status + " (",
-        nber_audio_file,
-        "/",
-        str(nber_file_to_process),
-        ")",
-    )
-    print(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
-    print(f"\t- Discarded audio: {skipped}")
+    glc.logger.info(f"o Audio file preparation : {status} ({nber_audio_file}/{nber_file_to_process})")
+
+    glc.logger.info(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
+    glc.logger.info(f"\t- Discarded audio: {skipped}")
 
     if nber_spectro == nber_spectro_to_process:
         status = "DONE"
@@ -374,13 +368,7 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
     else:
         status = "ONGOING"
 
-    print(
-        "o Spectrogram generation : " + status + " (",
-        nber_spectro,
-        "/",
-        str(nber_spectro_to_process),
-        ")",
-    )
+    glc.logger.info(f"o Spectrogram generation : {status} ({nber_spectro}/{nber_spectro_to_process})")
 
 
 def monitor_job(dataset: Spectrogram):
@@ -407,6 +395,7 @@ def monitor_job(dataset: Spectrogram):
 
             # Check for errors
             if result.returncode != 0:
+                glc.logger.error("The qstat command threw an error.")
                 raise Exception(result.stderr.strip())
 
             # Extract the job state from the command output
@@ -414,12 +403,13 @@ def monitor_job(dataset: Spectrogram):
             for line in output_lines:
                 if "job_state = " in line:
                     job_state = line.split("=")[1].strip()
-                    print(f"o Job ID: {j}\n  Job State: {job_state}")
+                    glc.logger.info(f"Job ID: {j}\n  Job State: {job_state}")
                     break
             else:
-                print(f"o Job ID: {j}\n  Job state not found.")
+                glc.logger.info(f"o Job ID: {j}\n  Job state not found.")
         except Exception as e:
-            print(f"o Job ID: {j}\n  {str(e)}")
+            glc.logger.error(f"o Job ID: {j}\n  {str(e)}")
+            raise e
 
 
 def read_job(job_id: str, dataset: Spectrogram):
@@ -438,8 +428,8 @@ def read_job(job_id: str, dataset: Spectrogram):
     if outfile:
         if outfile.exists():
             with open(outfile) as f:
-                print(f.read())
+                glc.logger.info(f.read())
         else:
             raise FileNotFoundError
     else:
-        print(f"{job_id} not in finished jobs")
+        glc.logger.info(f"{job_id} not in finished jobs")
