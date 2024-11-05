@@ -1,12 +1,10 @@
 from OSmOSE import Spectrogram
-from OSmOSE.config import *
+from OSmOSE.config import OSMOSE_PATH
 import argparse
-import random
 import os
 import numpy as np
 import itertools
 import pandas as pd
-from pathlib import Path
 from OSmOSE.utils.audio_utils import get_all_audio_files
 
 if __name__ == "__main__":
@@ -59,7 +57,7 @@ if __name__ == "__main__":
 
     if not dataset.path.joinpath("processed", "spectrogram", "adjust_metadata.csv"):
         raise FileNotFoundError(
-            f"The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
+            "The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
         )
 
     files = get_all_audio_files(dataset.audio_path)
