@@ -1,3 +1,4 @@
+# +
 from random import randint
 import os
 import sys
@@ -9,10 +10,13 @@ import subprocess
 from OSmOSE import Spectrogram
 from OSmOSE.config import OSMOSE_PATH
 from OSmOSE.cluster import reshape
-from OSmOSE.utils import get_all_audio_files, add_entry_for_APLOSE
+from OSmOSE.utils.audio_utils import get_all_audio_files
+from OSmOSE.utils.core_utils import add_entry_for_APLOSE
 
 
-def adjust_spectro(dataset: Spectrogram, number_adjustment_spectrogram: int = 1):
+def adjust_spectro(
+    dataset: Spectrogram, number_adjustment_spectrogram: int = 1, file_list: [str] = []
+):
     """
     Computes adjustment spectrograms.
 
@@ -28,9 +32,6 @@ def adjust_spectro(dataset: Spectrogram, number_adjustment_spectrogram: int = 1)
         isinstance(number_adjustment_spectrogram, int)
         and number_adjustment_spectrogram >= 0
     ), "'number_adjustment_spectrogram' must be an integer >= 0"
-    assert isinstance(
-        spectro_metadata, bool
-    ), "'spectro_metadata' must be a boolean value"
 
     if number_adjustment_spectrogram == 0:
         return
@@ -55,31 +56,40 @@ def adjust_spectro(dataset: Spectrogram, number_adjustment_spectrogram: int = 1)
 
     file_metadata = pd.read_csv(dataset.audio_path / "file_metadata.csv")
 
+    if len(file_list) > 0:
+        if all([f in file_metadata["filename"].values for f in file_list]):
+            file_metadata = file_metadata[file_metadata["filename"].isin(file_list)]
+        else:
+            files_not_in_file_metadata = [
+                f for f in file_list if f not in file_metadata["filename"].values
+            ]
+            raise ValueError(
+                f"{files_not_in_file_metadata} not found in file_metadata file."
+            )
+
     if os.path.exists(temp_adjustment_output_dir):
         shutil.rmtree(temp_adjustment_output_dir)
 
     for _ in range(number_adjustment_spectrogram):
-        random_idx = randint(0, len(origin_files) - 1)
+        random_file = file_metadata.sample()  # Gets a random row in file_metadata
 
-        selected_ts_beg = pd.Timestamp(
-            file_metadata["timestamp"].iloc[random_idx]
-        ).timestamp()
-        selected_ts_end = selected_ts_beg + file_metadata["duration"].iloc[random_idx]
-        tz_data = pd.Timestamp(file_metadata["timestamp"].iloc[random_idx]).tz
+        file_start = pd.Timestamp(random_file["timestamp"].values[0])
+        file_end = file_start + pd.Timedelta(seconds=random_file["duration"].values[0])
 
-        random_ts = randint(
-            int(selected_ts_beg), int(selected_ts_end - dataset.spectro_duration)
+        spectro_start = file_start + pd.Timedelta(
+            seconds=randint(
+                0, int((file_end - file_start).seconds - dataset.spectro_duration)
+            )
         )
-        random_ts_beg = pd.Timestamp(random_ts, unit="s", tz=tz_data)
-        random_ts_end = random_ts_beg + pd.Timedelta(dataset.spectro_duration, "s")
+        spectro_stop = spectro_start + pd.Timedelta(dataset.spectro_duration, "s")
 
         reshape(
             input_files=dataset.original_folder,
             segment_size=dataset.spectro_duration,
             new_sr=dataset.dataset_sr,
             output_dir_path=temp_adjustment_output_dir,
-            datetime_begin=str(random_ts_beg),
-            datetime_end=str(random_ts_end),
+            datetime_begin=str(spectro_start),
+            datetime_end=str(spectro_stop),
         )
 
     files_adjust = get_all_audio_files(temp_adjustment_output_dir)
