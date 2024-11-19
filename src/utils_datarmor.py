@@ -199,13 +199,14 @@ def generate_spectro(
             path=path_osmose_dataset, file="datasets.csv", info=dataset_info
         )
 
-    files = _files_in_analysis(datetime_begin=datetime_begin, datetime_end=datetime_end, audio_folder=dataset.audio_path)
-    batch_sizes = _compute_batch_sizes(nb_files = len(files), nb_batches = dataset.batch_number)
-    batch_indexes = [sum(batch_sizes[:i]) for i in range(len(batch_sizes))]
-
     jobfiles = []
 
     dataset.prepare_paths()
+
+    files = _files_in_analysis(datetime_begin=datetime_begin, datetime_end=datetime_end, audio_folder=dataset.audio_path)
+    batch_sizes = _compute_batch_sizes(nb_files = len(files), nb_batches = dataset.batch_number)
+    batch_indexes = [sum(batch_sizes[:i]) for i in range(len(batch_sizes))]
+    
     spectrogram_metadata_path = dataset.save_spectro_metadata(False)
 
     for batch in range(len(batch_indexes)):
