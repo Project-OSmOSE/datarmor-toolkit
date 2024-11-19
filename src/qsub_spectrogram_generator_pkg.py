@@ -20,7 +20,7 @@ if __name__ == "__main__":
     required.add_argument(
         "--dataset-path", "-p", required=True, help="The path to the dataset folder"
     )
-    parser.add_argument("--files", "-f", type=list)
+    parser.add_argument("--files", "-f", nargs="*")
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -65,8 +65,7 @@ if __name__ == "__main__":
     files = get_all_audio_files(dataset.audio_path)
 
     if args.files:
-        selected_files = args.files.split(" ")
-
+        selected_files = args.files
         if not all(dataset.audio_path.joinpath(f) in files for f in selected_files):
             raise FileNotFoundError(
                 f"At least one file in {selected_files} has not been found in {files}"

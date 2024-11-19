@@ -200,7 +200,8 @@ def generate_spectro(
         )
 
     # compute expected_nber_segmented_files
-    if dataset.concat:
+    files = _files_in_analysis(datetime_begin=datetime_begin, datetime_end=datetime_end, audio_folder=dataset.audio_path)
+    """ if dataset.concat:
         new_file = list(
             pd.date_range(
                 start=datetime_begin,
@@ -210,9 +211,9 @@ def generate_spectro(
         )
         nber_files_to_process = len(new_file) - 1
     else:
-        nber_files_to_process = len(dataset.list_audio_to_process)
-
-    batch_size = nber_files_to_process // dataset.batch_number
+        nber_files_to_process = _number_of_files_in_analysis(datetime_begin=datetime_begin, datetime_end=datetime_end, audio_folder=dataset.audio_path)
+    """
+    batch_size = len(files) // dataset.batch_number
 
     jobfiles = []
 
@@ -224,7 +225,7 @@ def generate_spectro(
         i_max = (
             i_min + batch_size
             if batch < dataset.batch_number - 1
-            else nber_files_to_process
+            else len(files)
         )  # If it is the last batch, take all files
 
         jobfile = dataset.jb.build_job_file(
@@ -235,7 +236,8 @@ def generate_spectro(
             f"--dataset-sr {dataset.dataset_sr} "
             f"--batch-ind-min {i_min} "
             f"--batch-ind-max {i_max} "
-            f"--spectrogram-metadata-path {spectrogram_metadata_path} "
+            f"--spectrogram-metadata-path {spectrogram_metadata_path} "                        
+            f"--files {' '.join(files)} "
             f"{'--overwrite ' if overwrite else ''}"
             f"{'--save-for-LTAS ' if save_welch else ''}"
             f"{'--save-matrix ' if save_matrix else ''}",
@@ -382,6 +384,10 @@ def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: st
         ")",
     )
 
+def _files_in_analysis(datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp, audio_folder: Path) -> list[str]:
+    timestamps = pd.read_csv(audio_folder / "timestamp.csv")
+    timestamps["timestamp"] = timestamps["timestamp"].apply(lambda t: pd.Timestamp(t))
+    return [str(audio_folder/filename) for filename in timestamps.loc[(datetime_begin <= timestamps["timestamp"]) & (timestamps["timestamp"] <= datetime_end), "filename"]]
 
 def monitor_job(dataset: Spectrogram):
 
