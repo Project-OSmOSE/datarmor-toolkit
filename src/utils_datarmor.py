@@ -372,7 +372,7 @@ def _files_in_analysis(datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp,
     file_duration = float(pd.read_csv(audio_folder / "metadata.csv")["audio_file_dataset_duration"][0])
     timestamps["begin"] = timestamps["timestamp"].apply(lambda t: pd.Timestamp(t))
     timestamps["end"] = timestamps["begin"] + pd.Timedelta(seconds=file_duration)
-    return [str(audio_folder/filename) for filename in timestamps.loc[(datetime_begin <= timestamps["end"]) & (datetime_end >= timestamps["begin"]), "filename"]]
+    return [str(audio_folder/filename) for filename in timestamps.loc[(datetime_begin < timestamps["end"]) & (datetime_end > timestamps["begin"]), "filename"]]
 
 def _compute_batch_sizes(nb_files: int, nb_batches: int):
     base_numbers_of_files = [nb_files // nb_batches] * nb_batches
