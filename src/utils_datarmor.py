@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from OSmOSE import Spectrogram
-from OSmOSE.config import SUPPORTED_AUDIO_FORMAT, OSMOSE_PATH, global_logging_context as glc
+from OSmOSE.config import SUPPORTED_AUDIO_FORMAT, OSMOSE_PATH, print_logger, global_logging_context as glc
 from OSmOSE.cluster import reshape
 import random
 import os
@@ -14,7 +14,6 @@ import shutil
 import subprocess
 from OSmOSE.utils.audio_utils import get_all_audio_files
 from OSmOSE.utils.core_utils import add_entry_for_APLOSE
-
 
 def validate_datetime(
     dataset: Spectrogram,
@@ -254,7 +253,7 @@ def generate_spectro(
         glc.logger.info(f"pending job ids: {pending_jobs}")
     glc.logger.info(f"The job ids are {job_id_list}")
 
-
+@glc.set_logger(print_logger)
 def display_progress(dataset: Spectrogram, datetime_begin: str, datetime_end: str):
 
     datetime_begin, datetime_end = validate_datetime(
@@ -368,6 +367,7 @@ def _compute_batch_sizes(nb_files: int, nb_batches: int):
     remainder_files = nb_files % nb_batches
     return [nb_files+1 if index < remainder_files else nb_files for index,nb_files in enumerate(base_numbers_of_files)]
 
+@glc.set_logger(print_logger)
 def monitor_job(dataset: Spectrogram):
 
     assert isinstance(
@@ -409,6 +409,7 @@ def monitor_job(dataset: Spectrogram):
             raise e
 
 
+@glc.set_logger(print_logger)
 def read_job(job_id: str, dataset: Spectrogram):
 
     assert isinstance(
