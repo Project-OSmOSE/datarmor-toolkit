@@ -1,4 +1,3 @@
-# +
 from random import randint
 import os
 import sys
@@ -249,7 +248,9 @@ def generate_spectro(
 
 
 def display_progress(
-    dataset: Spectrogram, datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp
+    dataset: Spectrogram,
+    datetime_begin: pd.Timestamp | None = None,
+    datetime_end: pd.Timestamp | None = None,
 ):
     """
     Display progress on audio segments and spectrogram computation.
