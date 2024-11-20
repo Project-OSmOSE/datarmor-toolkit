@@ -177,33 +177,19 @@ def generate_spectro(
             path=path_osmose_dataset, file="datasets.csv", info=dataset_info
         )
 
-    # compute number_files_to_process
-    if dataset.concat:
-        new_file = list(
-            pd.date_range(
-                start=datetime_begin,
-                end=datetime_end,
-                freq=f"{dataset.spectro_duration}s",
-            )
-        )
-        number_files_to_process = len(new_file) - 1
-    else:
-        number_files_to_process = len(dataset.list_audio_to_process)
-
-    batch_size = number_files_to_process // dataset.batch_number
-
-    job_files = []
+    jobfiles = []
 
     dataset.prepare_paths()
+
+    files = _files_in_analysis(datetime_begin=datetime_begin, datetime_end=datetime_end, audio_folder=dataset.audio_path)
+    batch_sizes = _compute_batch_sizes(nb_files = len(files), nb_batches = dataset.batch_number)
+    batch_indexes = [sum(batch_sizes[:i]) for i in range(len(batch_sizes))]
+    
     spectrogram_metadata_path = dataset.save_spectro_metadata(False)
 
-    for batch in range(dataset.batch_number):
-        i_min = batch * batch_size
-        i_max = (
-            i_min + batch_size
-            if batch < dataset.batch_number - 1
-            else number_files_to_process
-        )  # If it is the last batch, take all files
+    for batch in range(len(batch_indexes)):
+        first_file_index = batch_indexes[batch]
+        last_file_index = first_file_index + batch_sizes[batch]
 
         job_file = dataset.jb.build_job_file(
             script_path=Path(os.path.abspath("../src")).joinpath(
@@ -211,9 +197,9 @@ def generate_spectro(
             ),
             script_args=f"--dataset-path {dataset.path} "
             f"--dataset-sr {dataset.dataset_sr} "
-            f"--batch-ind-min {i_min} "
-            f"--batch-ind-max {i_max} "
-            f"--spectrogram-metadata-path {spectrogram_metadata_path} "
+            f"--spectrogram-metadata-path {spectrogram_metadata_path} "                        
+            f"--files {' '.join(files[first_file_index:last_file_index])} "
+            f"--first-file-index {first_file_index} "
             f"{'--overwrite ' if overwrite else ''}"
             f"{'--save-for-LTAS ' if save_welch else ''}"
             f"{'--save-matrix ' if save_matrix else ''}",
@@ -370,6 +356,17 @@ def display_progress(
         ")",
     )
 
+def _files_in_analysis(datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp, audio_folder: Path) -> list[str]:
+    timestamps = pd.read_csv(audio_folder / "timestamp.csv")
+    file_duration = float(pd.read_csv(audio_folder / "metadata.csv")["audio_file_dataset_duration"][0])
+    timestamps["begin"] = timestamps["timestamp"].apply(lambda t: pd.Timestamp(t))
+    timestamps["end"] = timestamps["begin"] + pd.Timedelta(seconds=file_duration)
+    return [str(audio_folder/filename) for filename in timestamps.loc[(datetime_begin < timestamps["end"]) & (datetime_end > timestamps["begin"]), "filename"]]
+
+def _compute_batch_sizes(nb_files: int, nb_batches: int):
+    base_numbers_of_files = [nb_files // nb_batches] * nb_batches
+    remainder_files = nb_files % nb_batches
+    return [nb_files+1 if index < remainder_files else nb_files for index,nb_files in enumerate(base_numbers_of_files)]
 
 def monitor_job(dataset: Spectrogram):
     """
