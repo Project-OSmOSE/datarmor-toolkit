@@ -5,6 +5,7 @@ import os
 import numpy as np
 import itertools
 import pandas as pd
+from pathlib import Path
 from OSmOSE.utils.audio_utils import get_all_audio_files
 
 if __name__ == "__main__":
@@ -18,25 +19,12 @@ if __name__ == "__main__":
     required.add_argument(
         "--dataset-path", "-p", required=True, help="The path to the dataset folder"
     )
-    parser.add_argument("--files", "-f", type=list)
+    parser.add_argument("--files", "-f", nargs="*")
+    parser.add_argument("--first-file-index", "-i", required = True, help = "The index of the first file considered by this batch")
     parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Deletes all existing spectrograms and their zoom levels matching the audio file before processing. If some spectrograms do not match any processed audio files, they will not be deleted.",
-    )
-    parser.add_argument(
-        "--batch-ind-min",
-        "-min",
-        type=int,
-        default=0,
-        help="The first file to consider. Default is 0.",
-    )
-    parser.add_argument(
-        "--batch-ind-max",
-        "-max",
-        type=int,
-        default=-1,
-        help="The last file to consider. -1 means consider all files from batch-ind-min. Default is -1",
     )
     parser.add_argument(
         "--save-matrix",
@@ -60,29 +48,17 @@ if __name__ == "__main__":
             "The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
         )
 
-    files = get_all_audio_files(dataset.audio_path)
+    files = [Path(file) for file in args.files]
 
-    if args.files:
-        selected_files = args.files.split(" ")
-
-        if not all(dataset.audio_path.joinpath(f) in files for f in selected_files):
-            raise FileNotFoundError(
-                f"At least one file in {selected_files} has not been found in {files}"
-            )
-        else:
-            files = selected_files
-
-    glc.logger.debug(f"Found {len(files)} files in {dataset.audio_path}.")
-
-    files_to_process = files[
-        args.batch_ind_min : (
-            args.batch_ind_max + 1 if args.batch_ind_max != -1 else len(files)
+    if missing_files := [file for file in files if not file.exists()]:
+        missing_file_list = "\n".join(str(file) for file in missing_files)
+        message = f"Missing files: {missing_file_list}"
+        glc.logger.error(message)
+        raise FileNotFoundError(
+            message
         )
-    ]
 
-    glc.logger.debug(f"files to process: {files_to_process}")
-
-    for i, audio_file in enumerate(files_to_process):
+    for audio_file in files:
         glc.logger.debug(audio_file)
 
         dataset.process_file(
@@ -94,7 +70,7 @@ if __name__ == "__main__":
             overwrite=args.overwrite,
         )
 
-    if args.save_for_LTAS and args.save_matrix:
+    if False and args.save_for_LTAS and args.save_matrix:
 
         # get metadata from spectrogram folder
         metadata_path = next(
@@ -113,9 +89,9 @@ if __name__ == "__main__":
         Sxx = np.empty((1, int(metadata_spectrogram["nfft"][0] / 2) + 1))
         Time = []
 
-        glc.logger.debug(f"number of welch: {len(files_to_process)}")
+        glc.logger.debug(f"number of welch: {len(files)}")
 
-        for file_npz in files_to_process:
+        for file_npz in files:
             file_npz = dataset.path.joinpath(
                 OSMOSE_PATH.welch,
                 dataset.audio_path.name,
