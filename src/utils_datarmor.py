@@ -104,8 +104,8 @@ def generate_spectro(
     overwrite: bool = False,
     save_matrix: bool = False,
     save_welch: bool = False,
-    datetime_begin: pd.Timestamp | None = None,
-    datetime_end: pd.Timestamp | None = None,
+    datetime_begin: str = None,
+    datetime_end: str = None,
 ):
     """
     Computes spectrograms of a given dataset.
@@ -124,9 +124,9 @@ def generate_spectro(
         Save matrix of spectrograms
     save_welch: bool
         Save welch spectrograms
-    datetime_begin: pd.Timestamp
+    datetime_begin: str
         Begin datetime of spectrograms to compute
-    datetime_end: pd.Timestamp
+    datetime_end: str
         End datetime of spectrograms to compute
     """
     first_job = next(iter(dataset.jb.all_jobs), None)
@@ -149,12 +149,28 @@ def generate_spectro(
     assert isinstance(
         path_osmose_dataset, str | Path
     ), f"'path_osmose_dataset' must be a path, {path_osmose_dataset} not a valid value"
-    assert isinstance(
-        datetime_begin, pd.Timestamp
-    ), f"'datetime_begin' must be either 'None' or a datetime, {datetime_begin} not a valid value"
-    assert isinstance(
-        datetime_end, pd.Timestamp
-    ), f"'datetime_end' must be either 'None' or a datetime, {datetime_end} not a valid value"
+
+    file_metadata = pd.read_csv(
+        dataset.path_input_audio_file / "file_metadata.csv", parse_dates=["timestamp"]
+    )
+
+    if not datetime_begin:
+        datetime_begin = file_metadata["timestamp"].iloc[0]
+    else:
+        try:
+            datetime_begin = pd.Timestamp(datetime_begin)
+        except Exception as e:
+            raise ValueError(f"'datetime_begin' not a valid datetime: {e}")
+
+    if not datetime_end:
+        datetime_end = file_metadata["timestamp"].iloc[-1] + pd.Timedelta(
+            file_metadata["duration"].iloc[-1], unit="s"
+        )
+    else:
+        try:
+            datetime_end = pd.Timestamp(datetime_end)
+        except Exception as e:
+            raise ValueError(f"'datetime_end' not a valid datetime: {e}")
 
     if write_datasets_csv_for_aplose is True:
 
