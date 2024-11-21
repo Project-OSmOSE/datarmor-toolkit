@@ -5,9 +5,8 @@ import itertools
 import pandas as pd
 
 from OSmOSE import Spectrogram
-from OSmOSE.config import *
-from OSmOSE.utils.audio_utils import get_all_audio_files
-from babel.util import missing
+from pathlib import Path
+from OSmOSE.config import OSMOSE_PATH
 
 def _get_batch_files(datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp, batch_index: int, total_number_of_batches: int, audio_folder: Path) -> list[Path]:
     total_files = _files_in_analysis(datetime_begin, datetime_end, audio_folder)
@@ -117,7 +116,7 @@ if __name__ == "__main__":
 
         print(f"number of welch: {len(files)}")
 
-        for file_npz in files_to_process:
+        for file_npz in files:
             file_npz = dataset.path.joinpath(
                 OSMOSE_PATH.welch,
                 dataset.audio_path.name,
