@@ -37,8 +37,6 @@ def adjust_spectro(
 
     dataset.audio_path = dataset.original_folder
 
-    origin_files = get_all_audio_files(dataset.audio_path)
-
     temp_adjustment_output_dir = (
         dataset.audio_path.parent
         / f"temp_{dataset.spectro_duration}_{dataset.dataset_sr}"
@@ -239,8 +237,8 @@ def generate_spectro(
         pending_jobs = []
 
     job_id_list = [
-        dataset.jb.submit_job(jobfile=jobfile, dependency=pending_jobs)
-        for jobfile in job_files
+        dataset.jb.submit_job(jobfile=job_file, dependency=pending_jobs)
+        for job_file in job_files
     ]  # submit all built job files
     nb_jobs = len(dataset.jb.finished_jobs) + len(job_id_list)
 
