@@ -189,6 +189,13 @@ def generate_spectro(
         add_entry_for_APLOSE(
             path=path_osmose_dataset, file="datasets.csv", info=dataset_info
         )
+    temp_adjustment_output_dir = (
+            dataset.audio_path.parent
+            / f"temp_{dataset.spectro_duration}_{dataset.dataset_sr}"
+    )
+
+    if os.path.exists(temp_adjustment_output_dir):
+        shutil.rmtree(temp_adjustment_output_dir)
 
     job_files = []
 
