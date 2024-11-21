@@ -11,7 +11,7 @@ from OSmOSE.config import OSMOSE_PATH
 from OSmOSE.cluster import reshape
 from OSmOSE.utils.audio_utils import get_all_audio_files
 from OSmOSE.utils.core_utils import add_entry_for_APLOSE
-
+from OSmOSE.utils.timestamp_utils import strftime_osmose_format
 
 def adjust_spectro(
     dataset: Spectrogram, number_adjustment_spectrogram: int = 1, file_list: [str] = []
@@ -35,10 +35,9 @@ def adjust_spectro(
     if number_adjustment_spectrogram == 0:
         return
 
-    dataset.audio_path = dataset.original_folder
 
     temp_adjustment_output_dir = (
-        dataset.audio_path.parent
+        dataset.original_folder.parent
         / f"temp_{dataset.spectro_duration}_{dataset.dataset_sr}"
     )
 
@@ -51,7 +50,7 @@ def adjust_spectro(
             "WARNING: the spectrogram normalization has been changed to spectrum because the data will be normalized using zscore."
         )
 
-    file_metadata = pd.read_csv(dataset.audio_path / "file_metadata.csv")
+    file_metadata = pd.read_csv(dataset.original_folder / "file_metadata.csv")
 
     if len(file_list) > 0:
         if all([f in file_metadata["filename"].values for f in file_list]):
@@ -149,7 +148,7 @@ def generate_spectro(
     ), f"'path_osmose_dataset' must be a path, {path_osmose_dataset} not a valid value"
 
     file_metadata = pd.read_csv(
-        dataset.path_input_audio_file / "file_metadata.csv", parse_dates=["timestamp"]
+        dataset.original_folder / "file_metadata.csv", parse_dates=["timestamp"]
     )
 
     if not datetime_begin:
@@ -169,6 +168,8 @@ def generate_spectro(
             datetime_end = pd.Timestamp(datetime_end)
         except Exception as e:
             raise ValueError(f"'datetime_end' not a valid datetime: {e}")
+    datetime_begin = strftime_osmose_format(datetime_begin)
+    datetime_end = strftime_osmose_format(datetime_end)
 
     if write_datasets_csv_for_aplose is True:
 
@@ -200,16 +201,10 @@ def generate_spectro(
     job_files = []
 
     dataset.prepare_paths()
-
-    files = _files_in_analysis(datetime_begin=datetime_begin, datetime_end=datetime_end, audio_folder=dataset.audio_path)
-    batch_sizes = _compute_batch_sizes(nb_files = len(files), nb_batches = dataset.batch_number)
-    batch_indexes = [sum(batch_sizes[:i]) for i in range(len(batch_sizes))]
     
     spectrogram_metadata_path = dataset.save_spectro_metadata(False)
 
-    for batch in range(len(batch_indexes)):
-        first_file_index = batch_indexes[batch]
-        last_file_index = first_file_index + batch_sizes[batch]
+    for batch in range(dataset.batch_number):
 
         job_file = dataset.jb.build_job_file(
             script_path=Path(os.path.abspath("../src")).joinpath(
@@ -217,9 +212,11 @@ def generate_spectro(
             ),
             script_args=f"--dataset-path {dataset.path} "
             f"--dataset-sr {dataset.dataset_sr} "
-            f"--spectrogram-metadata-path {spectrogram_metadata_path} "                        
-            f"--files {' '.join(files[first_file_index:last_file_index])} "
-            f"--first-file-index {first_file_index} "
+            f"--spectrogram-metadata-path {spectrogram_metadata_path} "
+            f"--datetime-begin {datetime_begin} "
+            f"--datetime-end {datetime_end} "
+            f"--batch-index {batch} "
+            f"--nb-batches {dataset.batch_number} "
             f"{'--overwrite ' if overwrite else ''}"
             f"{'--save-for-LTAS ' if save_welch else ''}"
             f"{'--save-matrix ' if save_matrix else ''}",
@@ -377,18 +374,6 @@ def display_progress(
         str(number_spectro_to_process),
         ")",
     )
-
-def _files_in_analysis(datetime_begin: pd.Timestamp, datetime_end: pd.Timestamp, audio_folder: Path) -> list[str]:
-    timestamps = pd.read_csv(audio_folder / "timestamp.csv")
-    file_duration = float(pd.read_csv(audio_folder / "metadata.csv")["audio_file_dataset_duration"][0])
-    timestamps["begin"] = timestamps["timestamp"].apply(lambda t: pd.Timestamp(t))
-    timestamps["end"] = timestamps["begin"] + pd.Timedelta(seconds=file_duration)
-    return [str(audio_folder/filename) for filename in timestamps.loc[(datetime_begin < timestamps["end"]) & (datetime_end > timestamps["begin"]), "filename"]]
-
-def _compute_batch_sizes(nb_files: int, nb_batches: int):
-    base_numbers_of_files = [nb_files // nb_batches] * nb_batches
-    remainder_files = nb_files % nb_batches
-    return [nb_files+1 if index < remainder_files else nb_files for index,nb_files in enumerate(base_numbers_of_files)]
 
 def monitor_job(dataset: Spectrogram):
     """
