@@ -192,7 +192,7 @@ def generate_spectro(
             path=path_osmose_dataset, file="datasets.csv", info=dataset_info
         )
 
-    jobfiles = []
+    job_files = []
 
     dataset.prepare_paths()
 
