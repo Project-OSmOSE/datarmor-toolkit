@@ -231,8 +231,6 @@ def generate_spectro(
             logdir=log_dir,
         )
 
-        job_files.append(job_file)
-
     if hasattr(dataset, "pending_jobs"):
         pending_jobs = [
             jobid
@@ -243,16 +241,12 @@ def generate_spectro(
     else:
         pending_jobs = []
 
-    job_id_list = [
-        dataset.jb.submit_job(jobfile=job_file, dependency=pending_jobs)
-        for job_file in job_files
-    ]  # submit all built job files
+    job_id_list = dataset.jb.submit_job(dependency=pending_jobs) # submit all built job files
     nb_jobs = len(dataset.jb.finished_jobs) + len(job_id_list)
 
     if pending_jobs:
         print(f"pending job ids: {pending_jobs}")
     print(f"The job ids are {job_id_list}")
-
 
 def display_progress(
     dataset: Spectrogram,
