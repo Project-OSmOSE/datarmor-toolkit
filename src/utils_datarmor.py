@@ -7,12 +7,11 @@ import shutil
 import subprocess
 
 from OSmOSE import Spectrogram
-from OSmOSE.config import OSMOSE_PATH
+from OSmOSE.config import OSMOSE_PATH, print_logger, global_logging_context as glc
 from OSmOSE.cluster import reshape
 from OSmOSE.utils.audio_utils import get_all_audio_files
 from OSmOSE.utils.core_utils import add_entry_for_APLOSE
 from OSmOSE.utils.timestamp_utils import strftime_osmose_format
-
 def adjust_spectro(
     dataset: Spectrogram, number_adjustment_spectrogram: int = 1, file_list: [str] = []
 ):
@@ -46,9 +45,8 @@ def adjust_spectro(
         and dataset.spectro_normalization != "spectrum"
     ):
         dataset.spectro_normalization = "spectrum"
-        print(
-            "WARNING: the spectrogram normalization has been changed to spectrum because the data will be normalized using zscore."
-        )
+        glc.logger.warning("The spectrogram normalization has been changed to spectrum because the data will be normalized using zscore.")
+
 
     file_metadata = pd.read_csv(dataset.original_folder / "file_metadata.csv")
 
@@ -242,9 +240,10 @@ def generate_spectro(
     nb_jobs = len(dataset.jb.finished_jobs) + len(job_id_list)
 
     if pending_jobs:
-        print(f"pending job ids: {pending_jobs}")
-    print(f"The job ids are {job_id_list}")
+        glc.logger.info(f"pending job ids: {pending_jobs}")
+    glc.logger.info(f"The job ids are {job_id_list}")
 
+@glc.set_logger(print_logger)
 def display_progress(
     dataset: Spectrogram,
     datetime_begin: pd.Timestamp | None = None,
@@ -344,15 +343,10 @@ def display_progress(
     else:
         status = "ONGOING"
 
-    print(
-        "o Audio file preparation : " + status + " (",
-        number_audio_file,
-        "/",
-        str(number_file_to_process),
-        ")",
-    )
-    print(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
-    print(f"\t- Discarded audio: {skipped}")
+    glc.logger.info(f"o Audio file preparation : {status} ({number_audio_file}/{number_file_to_process})")
+
+    glc.logger.info(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
+    glc.logger.info(f"\t- Discarded audio: {skipped}")
 
     if number_spectro == number_spectro_to_process:
         status = "DONE"
@@ -361,14 +355,9 @@ def display_progress(
     else:
         status = "ONGOING"
 
-    print(
-        "o Spectrogram generation : " + status + " (",
-        number_spectro,
-        "/",
-        str(number_spectro_to_process),
-        ")",
-    )
+    glc.logger.info(f"o Spectrogram generation : {status} ({number_spectro}/{number_spectro_to_process})")
 
+@glc.set_logger(print_logger)
 def monitor_job(dataset: Spectrogram):
     """
     Monitor ongoing jobs
@@ -400,6 +389,7 @@ def monitor_job(dataset: Spectrogram):
 
             # Check for errors
             if result.returncode != 0:
+                glc.logger.error("The qstat command threw an error.")
                 raise Exception(result.stderr.strip())
 
             # Extract the job state from the command output
@@ -407,14 +397,16 @@ def monitor_job(dataset: Spectrogram):
             for line in output_lines:
                 if "job_state = " in line:
                     job_state = line.split("=")[1].strip()
-                    print(f"o Job ID: {j}\n  Job State: {job_state}")
+                    glc.logger.info(f"Job ID: {j}\n  Job State: {job_state}")
                     break
             else:
-                print(f"o Job ID: {j}\n  Job state not found.")
+                glc.logger.info(f"o Job ID: {j}\n  Job state not found.")
         except Exception as e:
-            print(f"o Job ID: {j}\n  {str(e)}")
+            glc.logger.error(f"o Job ID: {j}\n  {str(e)}")
+            raise e
 
 
+@glc.set_logger(print_logger)
 def read_job(job_id: str, dataset: Spectrogram):
     """
     Inspect job status
@@ -441,8 +433,8 @@ def read_job(job_id: str, dataset: Spectrogram):
     if outfile:
         if outfile.exists():
             with open(outfile) as f:
-                print(f.read())
+                glc.logger.info(f.read())
         else:
             raise FileNotFoundError
     else:
-        print(f"{job_id} not in finished jobs")
+        glc.logger.info(f"{job_id} not in finished jobs")

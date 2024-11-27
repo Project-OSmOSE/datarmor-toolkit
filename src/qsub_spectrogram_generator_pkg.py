@@ -6,7 +6,7 @@ import pandas as pd
 
 from OSmOSE import Spectrogram
 from pathlib import Path
-from OSmOSE.config import OSMOSE_PATH
+from OSmOSE.config import OSMOSE_PATH, global_logging_context as glc
 
 def _get_files_processed_by_current_batch(all_files: list[Path], batch_index: int, total_number_of_batches: int) -> list[Path]:
     """
@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print("Parameters :", args)
+    glc.logger.info(f"Parameters: {args}")
 
     os.system("ln -sf /appli/sox/sox-14.4.2_gcc-7.2.0/bin/sox sox")
 
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     if not dataset.path.joinpath("processed", "spectrogram", "adjust_metadata.csv"):
         raise FileNotFoundError(
-            f"The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
+            "The file adjust_metadata.csv has not been found in the processed/spectrogram folder. Consider using the initialize() or update_parameters() methods."
         )
 
     datetime_begin = pd.Timestamp(args.datetime_begin)
@@ -142,12 +142,14 @@ if __name__ == "__main__":
 
     if missing_files := [file for file in files if not file.exists()]:
         missing_file_list = "\n".join(str(file) for file in missing_files)
+        message = f"Missing files: {missing_file_list}"
+        glc.logger.error(message)
         raise FileNotFoundError(
-            f"Missing files: {missing_file_list}"
+            message
         )
 
     for audio_file in files:
-        print(audio_file)
+        glc.logger.debug(audio_file)
 
         dataset.process_file(
             audio_file,
@@ -177,7 +179,7 @@ if __name__ == "__main__":
         Sxx = np.empty((1, int(metadata_spectrogram["nfft"][0] / 2) + 1))
         Time = []
 
-        print(f"number of welch: {len(files)}")
+        glc.logger.debug(f"number of welch: {len(files)}")
 
         for file_npz in files:
             file_npz = dataset.path.joinpath(
@@ -186,15 +188,15 @@ if __name__ == "__main__":
                 file_npz.with_suffix(".npz").name,
             )
             if file_npz.exists():
-                print(f"load {file_npz}")
+                glc.logger.debug(f"load {file_npz}")
                 current_matrix = np.load(file_npz, allow_pickle=True)
                 os.remove(file_npz)
                 Sxx = np.vstack((Sxx, current_matrix["Sxx"]))
-                print(f"Sxx {Sxx.shape}")
+                glc.logger.debug(f"Sxx {Sxx.shape}")
                 Time.append(current_matrix["Time"])
-                print(f"time {len(Time)}")
+                glc.logger.debug(f"time {len(Time)}")
             else:
-                print(f"File {file_npz} not found. Skipping...")
+                glc.logger.warning(f"File {file_npz} not found. Skipping...")
 
         Sxx = Sxx[1:, :]
         Freq = current_matrix["Freq"]
