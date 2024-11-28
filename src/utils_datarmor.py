@@ -149,23 +149,8 @@ def generate_spectro(
         dataset.original_folder / "file_metadata.csv", parse_dates=["timestamp"]
     )
 
-    if not datetime_begin:
-        datetime_begin = file_metadata["timestamp"].iloc[0]
-    else:
-        try:
-            datetime_begin = pd.Timestamp(datetime_begin)
-        except Exception as e:
-            raise ValueError(f"'datetime_begin' not a valid datetime: {e}")
+    datetime_begin, datetime_end = _clip_timestamps(begin=datetime_begin, end=datetime_end, file_metadata=file_metadata)
 
-    if not datetime_end:
-        datetime_end = file_metadata["timestamp"].iloc[-1] + pd.Timedelta(
-            file_metadata["duration"].iloc[-1], unit="s"
-        )
-    else:
-        try:
-            datetime_end = pd.Timestamp(datetime_end)
-        except Exception as e:
-            raise ValueError(f"'datetime_end' not a valid datetime: {e}")
     datetime_begin = strftime_osmose_format(datetime_begin)
     datetime_end = strftime_osmose_format(datetime_end)
 
@@ -438,3 +423,23 @@ def read_job(job_id: str, dataset: Spectrogram):
             raise FileNotFoundError
     else:
         glc.logger.info(f"{job_id} not in finished jobs")
+
+def _clip_timestamps(begin: os.PathLike or str or None, end: os.PathLike or str or None, file_metadata: pd.DataFrame):
+    if not begin:
+        begin = file_metadata["timestamp"].iloc[0]
+    else:
+        try:
+            begin = pd.Timestamp(begin)
+        except Exception as e:
+            raise ValueError(f"'datetime_begin' not a valid datetime: {e}")
+
+    if not end:
+        end = file_metadata["timestamp"].iloc[-1] + pd.Timedelta(
+            file_metadata["duration"].iloc[-1], unit="s"
+        )
+    else:
+        try:
+            end = pd.Timestamp(end)
+        except Exception as e:
+            raise ValueError(f"'datetime_end' not a valid datetime: {e}")
+    return begin, end
