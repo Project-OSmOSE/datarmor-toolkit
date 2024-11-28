@@ -12,6 +12,8 @@ from OSmOSE.cluster import reshape
 from OSmOSE.utils.audio_utils import get_all_audio_files
 from OSmOSE.utils.core_utils import add_entry_for_APLOSE
 from OSmOSE.utils.timestamp_utils import strftime_osmose_format
+
+
 def adjust_spectro(
     dataset: Spectrogram, number_adjustment_spectrogram: int = 1, file_list: [str] = []
 ):
@@ -145,11 +147,7 @@ def generate_spectro(
         path_osmose_dataset, str | Path
     ), f"'path_osmose_dataset' must be a path, {path_osmose_dataset} not a valid value"
 
-    file_metadata = pd.read_csv(
-        dataset.original_folder / "file_metadata.csv", parse_dates=["timestamp"]
-    )
-
-    datetime_begin, datetime_end = _clip_timestamps(begin=datetime_begin, end=datetime_end, file_metadata=file_metadata)
+    datetime_begin, datetime_end = _clip_timestamps(begin=datetime_begin, end=datetime_end, dataset=dataset)
 
     datetime_begin = strftime_osmose_format(datetime_begin)
     datetime_end = strftime_osmose_format(datetime_end)
@@ -249,6 +247,9 @@ def display_progress(
     assert isinstance(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, display aborted"
+
+    datetime_begin, datetime_end = _clip_timestamps(begin=datetime_begin, end=datetime_end, dataset=dataset)
+
     assert isinstance(
         datetime_begin, pd.Timestamp
     ), f"'{datetime_begin}' not a valid timestamp"
@@ -424,7 +425,12 @@ def read_job(job_id: str, dataset: Spectrogram):
     else:
         glc.logger.info(f"{job_id} not in finished jobs")
 
-def _clip_timestamps(begin: os.PathLike or str or None, end: os.PathLike or str or None, file_metadata: pd.DataFrame):
+def _clip_timestamps(begin: pd.Timestamp or str or None, end: pd.Timestamp or str or None, dataset: Spectrogram):
+
+    file_metadata = pd.read_csv(
+        dataset.original_folder / "file_metadata.csv", parse_dates=["timestamp"]
+    )
+
     if not begin:
         begin = file_metadata["timestamp"].iloc[0]
     else:
