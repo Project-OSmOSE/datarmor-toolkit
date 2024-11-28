@@ -266,20 +266,6 @@ def display_progress(
         2**i for i in range(dataset.zoom_level + 1)
     )
 
-    # counting the skipped files
-    out_file = [
-        str(job["outfile"])
-        for job in dataset.jb.finished_jobs
-        if "reshape" in str(job["outfile"])
-    ]
-
-    skipped = 0
-    if out_file:
-        for file in out_file:
-            with open(file, "r") as f:
-                skipped += sum(line.count("Skipping...") for line in f)
-        number_audio_file += skipped
-
     if number_audio_file == target_nb_files:
         status = "DONE"
         dataset.jb.update_job_status()
@@ -290,7 +276,6 @@ def display_progress(
     glc.logger.info(f"o Audio file preparation : {status} ({number_audio_file}/{target_nb_files})")
 
     glc.logger.info(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
-    glc.logger.info(f"\t- Discarded audio: {skipped}")
 
     if number_spectro == number_spectro_to_process:
         status = "DONE"
