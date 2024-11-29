@@ -12,6 +12,8 @@ from OSmOSE.cluster import reshape
 from OSmOSE.utils.audio_utils import get_all_audio_files
 from OSmOSE.utils.core_utils import add_entry_for_APLOSE
 from OSmOSE.utils.timestamp_utils import strftime_osmose_format
+
+
 def adjust_spectro(
     dataset: Spectrogram, number_adjustment_spectrogram: int = 1, file_list: [str] = []
 ):
@@ -145,27 +147,8 @@ def generate_spectro(
         path_osmose_dataset, str | Path
     ), f"'path_osmose_dataset' must be a path, {path_osmose_dataset} not a valid value"
 
-    file_metadata = pd.read_csv(
-        dataset.original_folder / "file_metadata.csv", parse_dates=["timestamp"]
-    )
+    datetime_begin, datetime_end = _clip_timestamps(begin=datetime_begin, end=datetime_end, dataset=dataset)
 
-    if not datetime_begin:
-        datetime_begin = file_metadata["timestamp"].iloc[0]
-    else:
-        try:
-            datetime_begin = pd.Timestamp(datetime_begin)
-        except Exception as e:
-            raise ValueError(f"'datetime_begin' not a valid datetime: {e}")
-
-    if not datetime_end:
-        datetime_end = file_metadata["timestamp"].iloc[-1] + pd.Timedelta(
-            file_metadata["duration"].iloc[-1], unit="s"
-        )
-    else:
-        try:
-            datetime_end = pd.Timestamp(datetime_end)
-        except Exception as e:
-            raise ValueError(f"'datetime_end' not a valid datetime: {e}")
     datetime_begin = strftime_osmose_format(datetime_begin)
     datetime_end = strftime_osmose_format(datetime_end)
 
@@ -264,6 +247,9 @@ def display_progress(
     assert isinstance(
         dataset, Spectrogram
     ), "Not a Spectrogram object passed, display aborted"
+
+    datetime_begin, datetime_end = _clip_timestamps(begin=datetime_begin, end=datetime_end, dataset=dataset)
+
     assert isinstance(
         datetime_begin, pd.Timestamp
     ), f"'{datetime_begin}' not a valid timestamp"
@@ -271,82 +257,25 @@ def display_progress(
         datetime_end, pd.Timestamp
     ), f"'{datetime_end}' not a valid timestamp"
 
-    number_audio_file = len(get_all_audio_files(dataset.audio_path))
-
-    if dataset.concat:
-        test_range = pd.date_range(
-            start=datetime_begin,
-            end=datetime_end,
-            freq=f"{dataset.spectro_duration}s",
-        ).to_list()
-
-        origin_dt = pd.read_csv(
-            dataset.path_input_audio_file / "timestamp.csv", parse_dates=["timestamp"]
-        )["timestamp"]
-
-        number_file_to_process = 0
-        for dt in test_range:
-            if (
-                origin_dt.iloc[0] - pd.Timedelta(dataset.spectro_duration, "s")
-                <= dt
-                <= origin_dt.iloc[-1] + pd.Timedelta(dataset.spectro_duration, "s")
-            ):
-                number_file_to_process += 1
-
-    else:
-        origin_timestamp = pd.read_csv(
-            dataset.original_folder / "timestamp.csv", parse_dates=["timestamp"]
-        )
-
-        datetime_begin = (
-            origin_timestamp["timestamp"].iloc[0]
-            if datetime_begin is None
-            else datetime_begin
-        )
-
-        datetime_end = (
-            origin_timestamp["timestamp"].iloc[-1]
-            if datetime_end is None
-            else datetime_end
-        )
-
-        number_file_to_process = len(
-            origin_timestamp[
-                (origin_timestamp["timestamp"] >= datetime_begin)
-                & (origin_timestamp["timestamp"] <= datetime_end)
-            ]
-        )
+    dataset.prepare_paths()
+    target_nb_files = _approximate_target_nb_file(datetime_begin, datetime_end, dataset)
 
     number_spectro = len(list(dataset.path_output_spectrogram.glob("*png")))
-    number_spectro_to_process = number_file_to_process * sum(
+    number_audio_file = len(list(dataset.audio_path.glob("*.wav")))
+    number_spectro_to_process = target_nb_files * sum(
         2**i for i in range(dataset.zoom_level + 1)
     )
 
-    # counting the skipped files
-    out_file = [
-        str(job["outfile"])
-        for job in dataset.jb.finished_jobs
-        if "reshape" in str(job["outfile"])
-    ]
-
-    skipped = 0
-    if out_file:
-        for file in out_file:
-            with open(file, "r") as f:
-                skipped += sum(line.count("Skipping...") for line in f)
-        number_audio_file += skipped
-
-    if number_audio_file == number_file_to_process:
+    if number_audio_file == target_nb_files:
         status = "DONE"
         dataset.jb.update_job_status()
         dataset.jb.update_job_access()
     else:
         status = "ONGOING"
 
-    glc.logger.info(f"o Audio file preparation : {status} ({number_audio_file}/{number_file_to_process})")
+    glc.logger.info(f"o Audio file preparation : {status} ({number_audio_file}/{target_nb_files})")
 
     glc.logger.info(f"\t- Generated audio: {len(get_all_audio_files(dataset.audio_path))}")
-    glc.logger.info(f"\t- Discarded audio: {skipped}")
 
     if number_spectro == number_spectro_to_process:
         status = "DONE"
@@ -438,3 +367,39 @@ def read_job(job_id: str, dataset: Spectrogram):
             raise FileNotFoundError
     else:
         glc.logger.info(f"{job_id} not in finished jobs")
+
+def _clip_timestamps(begin: pd.Timestamp or str or None, end: pd.Timestamp or str or None, dataset: Spectrogram):
+
+    file_metadata = pd.read_csv(
+        dataset.original_folder / "file_metadata.csv", parse_dates=["timestamp"]
+    )
+
+    if not begin:
+        begin = file_metadata["timestamp"].iloc[0]
+    else:
+        try:
+            begin = pd.Timestamp(begin)
+        except Exception as e:
+            raise ValueError(f"'datetime_begin' not a valid datetime: {e}")
+
+    if not end:
+        end = file_metadata["timestamp"].iloc[-1] + pd.Timedelta(
+            file_metadata["duration"].iloc[-1], unit="s"
+        )
+    else:
+        try:
+            end = pd.Timestamp(end)
+        except Exception as e:
+            raise ValueError(f"'datetime_end' not a valid datetime: {e}")
+    return begin, end
+
+def _approximate_target_nb_file(begin: pd.Timestamp, end: pd.Timestamp, dataset: Spectrogram) -> int:
+    file_duration = dataset.spectro_duration
+    target_file_time = [(start, start + pd.Timedelta(seconds = file_duration)) for start in pd.date_range(begin, end, freq=pd.Timedelta(seconds=file_duration))]
+    file_metadata = pd.read_csv(dataset.original_folder / "file_metadata.csv")
+    file_metadata["duration"] = file_metadata["duration"].apply(lambda d: pd.Timedelta(seconds = d))
+    file_metadata["timestamp"] = file_metadata["timestamp"].apply(lambda t: pd.Timestamp(t))
+    file_metadata["end"] = file_metadata["timestamp"] + file_metadata["duration"]
+
+    target_file_time = [(begin,end) for begin,end in target_file_time if len(file_metadata.loc[(file_metadata["timestamp"] < end ) & (file_metadata["end"] > begin )]) > 0]
+    return len(target_file_time)
