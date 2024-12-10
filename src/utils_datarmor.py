@@ -10,7 +10,7 @@ from OSmOSE import Spectrogram
 from OSmOSE.config import OSMOSE_PATH, print_logger, global_logging_context as glc
 from OSmOSE.cluster import reshape
 from OSmOSE.utils.audio_utils import get_all_audio_files
-from OSmOSE.utils.core_utils import add_entry_for_APLOSE
+from OSmOSE.utils.core_utils import add_entry_for_APLOSE, get_umask
 from OSmOSE.utils.timestamp_utils import strftime_osmose_format
 
 
@@ -200,7 +200,8 @@ def generate_spectro(
             f"--nb-batches {dataset.batch_number} "
             f"{'--overwrite ' if overwrite else ''}"
             f"{'--save-for-LTAS ' if save_welch else ''}"
-            f"{'--save-matrix ' if save_matrix else ''}",
+            f"{'--save-matrix ' if save_matrix else ''}"
+            f"--umask {get_umask()} ",
             jobname="OSmOSE_SpectroGenerator",
             preset="low",
             env_name=sys.executable.replace("/bin/python", ""),
