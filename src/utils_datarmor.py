@@ -86,6 +86,7 @@ def adjust_spectro(
             output_dir_path=temp_adjustment_output_dir,
             datetime_begin=str(spectro_start),
             datetime_end=str(spectro_stop),
+            umask = get_umask()
         )
 
     files_adjust = get_all_audio_files(temp_adjustment_output_dir)
