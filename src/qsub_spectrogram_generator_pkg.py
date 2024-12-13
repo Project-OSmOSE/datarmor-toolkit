@@ -118,12 +118,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--save-for-LTAS", action="store_true")
     parser.add_argument("--spectrogram-metadata-path", type=str, default="")
+    parser.add_argument("--umask", type=int, default=0o002, help="The umask to apply on the created file permissions.")
 
     args = parser.parse_args()
 
     glc.logger.info(f"Parameters: {args}")
 
     os.system("ln -sf /appli/sox/sox-14.4.2_gcc-7.2.0/bin/sox sox")
+    os.umask(args.umask)
 
     dataset = Spectrogram.from_csv(
         dataset_path=args.dataset_path, metadata_csv_path=args.spectrogram_metadata_path
